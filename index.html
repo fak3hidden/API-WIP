@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API-WIP · Script Uploader</title>
+<meta name="description" content="Upload a Lua script and instantly get a loadstring API for it.">
+<style>
+  :root{
+    --bg:#0b0f17;
+    --bg-2:#0e1420;
+    --card:#111827;
+    --card-2:#0d1320;
+    --border:#1f2937;
+    --border-2:#2b3648;
+    --text:#e7eaf2;
+    --muted:#8b93a7;
+    --muted-2:#5c6475;
+    --accent:#7c6cf6;
+    --accent-2:#22d3ee;
+    --ok:#34d399;
+    --err:#f87171;
+    --warn:#fbbf24;
+    --mono:ui-monospace,"JetBrains Mono","Cascadia Code","SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:var(--sans);
+    background:
+      radial-gradient(900px 480px at 85% -10%, rgba(124,108,246,.16), transparent 60%),
+      radial-gradient(700px 420px at -10% 20%, rgba(34,211,238,.10), transparent 55%),
+      var(--bg);
+    color:var(--text);
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:0 22px}
+
+  /* ---------- header ---------- */
+  header{
+    border-bottom:1px solid var(--border);
+    background:rgba(11,15,23,.72);
+    backdrop-filter:blur(10px);
+    position:sticky;top:0;z-index:50;
+  }
+  .head{display:flex;align-items:center;justify-content:space-between;height:64px}
+  .logo{display:flex;align-items:center;gap:12px;font-weight:800;letter-spacing:.4px;font-size:16px}
+  .logo .badge{
+    width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:16px;font-weight:900;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    color:#fff;box-shadow:0 4px 18px rgba(124,108,246,.45);
+  }
+  .logo small{color:var(--muted);font-weight:500;margin-left:4px}
+  .head-right{display:flex;align-items:center;gap:14px;color:var(--muted);font-size:13px}
+  .repo-link{
+    color:var(--muted);text-decoration:none;font-family:var(--mono);font-size:12.5px;
+    border:1px solid var(--border);padding:6px 12px;border-radius:8px;transition:.2s;
+  }
+  .repo-link:hover{color:var(--accent-2);border-color:var(--border-2)}
+
+  /* ---------- hero ---------- */
+  .hero{padding:52px 0 26px;text-align:center}
+  .hero h1{
+    font-size:clamp(26px,4.5vw,40px);font-weight:800;letter-spacing:-.5px;line-height:1.15;
+    background:linear-gradient(90deg,#c9c4ff,var(--accent-2));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .hero p{color:var(--muted);margin-top:12px;font-size:15px;max-width:620px;margin-inline:auto;line-height:1.6}
+  .steps{display:flex;justify-content:center;gap:0;margin-top:26px;flex-wrap:wrap}
+  .step{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px;font-weight:600}
+  .step .n{
+    width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;
+    border:1px solid var(--border-2);color:var(--muted);background:var(--card);
+  }
+  .step.act .n{background:linear-gradient(135deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff;box-shadow:0 3px 12px rgba(124,108,246,.4)}
+  .step.act{color:var(--text)}
+  .step .bar{width:44px;height:1px;background:var(--border-2)}
+
+  /* ---------- layout ---------- */
+  .grid{display:grid;grid-template-columns:1.05fr .95fr;gap:22px;padding:26px 0 60px}
+  @media(max-width:920px){.grid{grid-template-columns:1fr}}
+  .card{
+    background:linear-gradient(180deg,var(--card),var(--card-2));
+    border:1px solid var(--border);border-radius:var(--radius);
+    padding:20px;margin-bottom:20px;
+  }
+  .card h2{font-size:14px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted-2);display:flex;align-items:center;gap:8px}
+  .card h2 .dot{width:7px;height:7px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-2))}
+
+  /* ---------- dropzone ---------- */
+  .drop{
+    margin-top:14px;border:1.5px dashed var(--border-2);border-radius:12px;padding:34px 18px;
+    text-align:center;cursor:pointer;transition:.2s;background:rgba(124,108,246,.03);
+  }
+  .drop:hover,.drop.over{border-color:var(--accent);background:rgba(124,108,246,.08)}
+  .drop .icon{font-size:30px;line-height:1}
+  .drop p{margin-top:10px;color:var(--text);font-size:14px;font-weight:600}
+  .drop small{color:var(--muted);font-size:12px;display:block;margin-top:5px}
+  .drop input[type=file]{display:none}
+
+  .or{margin:16px 0 10px;text-align:center;color:var(--muted-2);font-size:12px;letter-spacing:1px;text-transform:uppercase;display:flex;align-items:center;gap:12px}
+  .or::before,.or::after{content:"";flex:1;height:1px;background:var(--border)}
+  textarea{
+    width:100%;min-height:170px;resize:vertical;border-radius:10px;background:#0a0f18;
+    border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:12.5px;line-height:1.6;
+    padding:12px 14px;outline:none;transition:border-color .2s;
+  }
+  textarea:focus{border-color:var(--accent)}
+  .ta-actions{display:flex;justify-content:flex-end;margin-top:8px;gap:8px}
+
+  /* ---------- controls ---------- */
+  .fld{margin-top:14px}
+  .fld label{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin-bottom:6px}
+  .fld label .hint{font-weight:400;color:var(--muted-2)}
+  .fld input[type=text],.fld input[type=password],.fld input[type=url]{
+    width:100%;height:40px;border-radius:9px;background:#0a0f18;border:1px solid var(--border);
+    color:var(--text);font-family:var(--mono);font-size:13px;padding:0 12px;outline:none;transition:border-color .2s;
+  }
+  .fld input:focus{border-color:var(--accent)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:560px){.row{grid-template-columns:1fr}}
+  .input-wrap{position:relative}
+  .input-wrap input{padding-right:86px}
+  .input-wrap .gen{
+    position:absolute;right:6px;top:50%;transform:translateY(-50%);
+    background:var(--card);border:1px solid var(--border-2);color:var(--muted);
+    font-size:11px;font-weight:700;border-radius:6px;padding:5px 9px;cursor:pointer;transition:.2s;
+  }
+  .input-wrap .gen:hover{color:var(--accent-2);border-color:var(--accent)}
+
+  /* ---------- buttons ---------- */
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;
+    border-radius:9px;border:none;cursor:pointer;font-weight:700;font-size:13.5px;
+    padding:0 16px;transition:.2s;font-family:var(--sans);white-space:nowrap;
+  }
+  .btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#0b0f17}
+  .btn-primary:hover{filter:brightness(1.12);transform:translateY(-1px)}
+  .btn-ghost{background:transparent;border:1px solid var(--border-2);color:var(--text)}
+  .btn-ghost:hover{border-color:var(--accent);color:var(--accent-2)}
+  .btn:disabled{opacity:.45;cursor:not-allowed;transform:none!important}
+  .btn-sm{height:30px;font-size:12px;padding:0 11px;border-radius:7px}
+  .btn-block{width:100%;margin-top:16px}
+
+  /* ---------- output ---------- */
+  .out-tabs{display:flex;gap:6px;margin:14px 0 10px}
+  .tab{
+    font-size:12px;font-weight:700;color:var(--muted);background:transparent;border:1px solid var(--border);
+    padding:6px 12px;border-radius:7px;cursor:pointer;transition:.2s;font-family:var(--sans);
+  }
+  .tab.on{color:var(--text);border-color:var(--accent);background:rgba(124,108,246,.12)}
+  .code{
+    position:relative;background:#0a0f18;border:1px solid var(--border);border-radius:11px;overflow:hidden;
+  }
+  .code .bar-top{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#0c1322;border-bottom:1px solid var(--border)}
+  .code .dots{display:flex;gap:5px}
+  .code .dots i{width:9px;height:9px;border-radius:50%;display:block}
+  .code .dots i:nth-child(1){background:#f87171}.code .dots i:nth-child(2){background:#fbbf24}.code .dots i:nth-child(3){background:#34d399}
+  .code .bar-top span{font-family:var(--mono);font-size:11px;color:var(--muted-2)}
+  .code pre{
+    padding:16px;overflow:auto;font-family:var(--mono);font-size:12.8px;line-height:1.75;
+    color:#c9d2e6;white-space:pre-wrap;word-break:break-all;max-height:340px;
+  }
+  .code pre .k{color:var(--accent-2)}        /* string values / urls */
+  .code pre .s{color:#f59e0b}                /* script_key */
+  .code .copy{
+    position:absolute;top:36px;right:12px;opacity:0;transition:.2s;
+    background:rgba(124,108,246,.16);border:1px solid var(--border-2);color:var(--text);
+    border-radius:7px;font-size:11.5px;font-weight:700;padding:6px 11px;cursor:pointer;
+  }
+  .code:hover .copy{opacity:1}
+  .code .copy.done{opacity:1;background:rgba(52,211,153,.18);border-color:var(--ok)}
+
+  .out-meta{margin-top:12px;display:grid;gap:9px}
+  .meta-row{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px}
+  .meta-row .lbl{color:var(--muted);font-weight:600}
+  .meta-row .val{font-family:var(--mono);font-size:12.5px;color:var(--accent-2);word-break:break-all;text-align:right}
+  .meta-actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+  .meta-actions .btn{flex:1;min-width:120px}
+
+  /* ---------- publish ---------- */
+  .pub-note{
+    margin-top:14px;background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.22);
+    border-radius:10px;padding:11px 13px;font-size:12.5px;color:#d9c48a;line-height:1.6;
+  }
+  .pub-note.good{background:rgba(52,211,153,.07);border-color:rgba(52,211,153,.25);color:#a7e6cc}
+  .pub-note.err{background:rgba(248,113,113,.08);border-color:rgba(248,113,113,.3);color:#f0b3b3}
+  details.pub{margin-top:16px;border:1px solid var(--border);border-radius:11px;background:#0d1320;overflow:hidden}
+  details.pub summary{
+    cursor:pointer;padding:12px 14px;font-size:13px;font-weight:700;color:var(--text);list-style:none;display:flex;align-items:center;gap:9px;
+  }
+  details.pub summary::-webkit-details-marker{display:none}
+  details.pub summary::before{content:"▸";transition:.2s;color:var(--muted)}
+  details.pub[open] summary::before{transform:rotate(90deg)}
+  details.pub .pub-body{padding:4px 14px 14px}
+  .token-note{font-size:11.5px;color:var(--muted-2);margin-top:7px;line-height:1.55}
+  .token-note b{color:var(--warn);font-weight:700}
+
+  /* ---------- library ---------- */
+  .lib-item{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-top:10px;background:#0d1320;
+  }
+  .lib-item .name{font-family:var(--mono);font-size:12.5px;color:var(--text);word-break:break-all}
+  .lib-item .sub{font-size:11.5px;color:var(--muted);margin-top:2px;font-family:var(--mono);word-break:break-all}
+  .lib-item .status{font-size:10.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;padding:3px 8px;border-radius:20px;flex-shrink:0}
+  .status.live{color:var(--ok);background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3)}
+  .status.dead{color:var(--err);background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3)}
+  .status.wait{color:var(--warn);background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3)}
+  .lib-item .mini{display:flex;gap:6px}
+  .lib-empty{color:var(--muted-2);font-size:13px;margin-top:14px;line-height:1.6}
+
+  /* ---------- footer ---------- */
+  footer{border-top:1px solid var(--border);padding:26px 0 34px;color:var(--muted-2);font-size:12.5px;text-align:center}
+  footer code{font-family:var(--mono);color:var(--muted);background:#0d1320;border:1px solid var(--border);padding:2px 7px;border-radius:6px}
+
+  /* ---------- toasts ---------- */
+  #toasts{position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;gap:10px;z-index:100}
+  .toast{
+    background:#131c2e;border:1px solid var(--border-2);border-left:3px solid var(--accent);
+    color:var(--text);font-size:13px;padding:12px 16px;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.45);
+    display:flex;align-items:center;gap:10px;animation:slide .25s ease;max-width:340px;
+  }
+  .toast.ok{border-left-color:var(--ok)} .toast.err{border-left-color:var(--err)} .toast.warn{border-left-color:var(--warn)}
+  @keyframes slide{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+  .toast.out{opacity:0;transform:translateY(6px);transition:.3s}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap head">
+    <div class="logo"><span class="badge">⚡</span> API-WIP <small>· script uploader</small></div>
+    <div class="head-right">
+      <a class="repo-link" href="https://github.com/fak3hidden/API-WIP" target="_blank" rel="noopener">github.com/fak3hidden/API-WIP</a>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <h1>Upload a script. Get an API.</h1>
+    <p>Drop your Lua script in, give it a name, and instantly get a ready-to-paste
+    <code style="font-family:var(--mono);font-size:13px">loadstring(game:HttpGet(...))</code> loader with your custom URL.</p>
+    <div class="steps">
+      <div class="step act" id="st1"><span class="n">1</span> Upload script</div>
+      <div class="bar"></div>
+      <div class="step" id="st2"><span class="n">2</span> Customize URL &amp; key</div>
+      <div class="bar"></div>
+      <div class="step" id="st3"><span class="n">3</span> Copy your API</div>
+    </div>
+  </section>
+
+  <div class="grid">
+    <!-- LEFT COLUMN -->
+    <div>
+      <section class="card">
+        <h2><span class="dot"></span> 1 · Upload your script</h2>
+
+        <div class="drop" id="drop">
+          <div class="icon">📁</div>
+          <p>Drag &amp; drop your <code style="font-family:var(--mono)">.lua</code> file here</p>
+          <small>or click to browse — script content stays in your browser</small>
+          <input type="file" id="file" accept=".lua,.txt,.luau,text/plain">
+        </div>
+
+        <div class="or">or paste the code</div>
+        <textarea id="paste" placeholder='-- paste your Lua script here...&#10;print("hello from my script")' spellcheck="false"></textarea>
+        <div class="ta-actions">
+          <button class="btn btn-ghost btn-sm" id="clearBtn" type="button">Clear</button>
+          <button class="btn btn-primary btn-sm" id="useBtn" type="button">Use this script →</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2><span class="dot"></span> 2 · Customize</h2>
+
+        <div class="fld">
+          <label for="slug">Custom URL <span class="hint">(the "user" part of your link — auto-filled from the file name)</span></label>
+          <div class="input-wrap">
+            <input type="text" id="slug" placeholder="my-awesome-script" autocomplete="off">
+            <button class="gen" id="slugGen" type="button" title="Randomize slug">🎲</button>
+          </div>
+        </div>
+
+        <div class="fld">
+          <label for="key">Script key <span class="hint">(shown as <code style="font-family:var(--mono)">script_key</code> in the loader)</span></label>
+          <div class="input-wrap">
+            <input type="text" id="key" value="Key That You Got" autocomplete="off">
+            <button class="gen" id="keyGen" type="button" title="Generate a random key">🎲</button>
+          </div>
+        </div>
+
+        <div class="fld">
+          <label for="repo">Repo base <span class="hint">(where the script file lives)</span></label>
+          <input type="text" id="repo" value="fak3hidden/API-WIP" autocomplete="off">
+        </div>
+        <div class="fld">
+          <label for="branch">Branch</label>
+          <input type="text" id="branch" value="main" autocomplete="off">
+        </div>
+      </section>
+
+      <section class="card">
+        <h2><span class="dot"></span> Publish to the repo <span style="text-transform:none;font-weight:500">(optional)</span></h2>
+        <div class="pub-note" id="pubNote">
+          The generated loader fetches your script from <b>raw.githubusercontent.com</b>, so the file needs to exist in the repo.
+          To push it straight from here, open <b>Publish with GitHub API</b> below and paste a
+          <b>fine-grained</b> personal access token with <b>Contents: read &amp; write</b> on this repo.
+          The token is kept only in your browser (localStorage) and sent only to <code style="font-family:var(--mono)">api.github.com</code>.
+        </div>
+        <details class="pub">
+          <summary>Publish with GitHub API</summary>
+          <div class="pub-body">
+            <div class="fld"><label for="tok">Token (fine-grained PAT, Contents read/write)</label>
+              <input type="password" id="tok" placeholder="github_pat_..." autocomplete="off">
+            </div>
+            <button class="btn btn-primary btn-block" id="publishBtn" type="button">⬆ Publish <span id="pubSlug"></span> to the repo</button>
+            <p class="token-note">🔒 Stored in <b>localStorage</b> on this device only. Cleared if you refresh with Shift or use "Clear saved token".</p>
+          </div>
+        </details>
+      </section>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div>
+      <section class="card">
+        <h2><span class="dot"></span> 3 · Your API</h2>
+
+        <div class="out-tabs">
+          <button class="tab on" data-fmt="std" type="button">Standard</button>
+          <button class="tab" data-fmt="one" type="button">One-liner</button>
+        </div>
+
+        <div class="code">
+          <div class="bar-top"><div class="dots"><i></i><i></i><i></i></div><span id="outName">loader.lua</span></div>
+          <pre id="out"></pre>
+          <button class="copy" id="copyBtn" type="button">📋 Copy</button>
+        </div>
+
+        <div class="out-meta">
+          <div class="meta-row"><span class="lbl">API URL</span><span class="val" id="apiUrl">—</span></div>
+          <div class="meta-row"><span class="lbl">Raw file</span><span class="val" id="rawUrl">—</span></div>
+        </div>
+
+        <div class="meta-actions">
+          <button class="btn btn-ghost" id="testBtn" type="button">🛰 Test URL</button>
+          <button class="btn btn-ghost" id="downBtn" type="button">⬇ Save .lua</button>
+          <button class="btn btn-primary" id="copyBtn2" type="button">📋 Copy loader</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2><span class="dot"></span> Your scripts <span style="text-transform:none;font-weight:500" id="libCount"></span></h2>
+        <div id="lib"></div>
+        <div class="lib-empty" id="libEmpty">Nothing here yet — upload a script and hit <b>“Save to library”</b> (or publish it) to keep a record with live/dead status.</div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    Powered by <code>fak3hidden/API-WIP</code> · scripts are served via
+    <code>raw.githubusercontent.com</code> and loaded with <code>loadstring(game:HttpGet(...))</code>
+  </div>
+</footer>
+
+<div id="toasts"></div>
+
+<script>
+"use strict";
+/* ============================================================
+   API-WIP · Script Uploader
+   - upload / paste a Lua script
+   - pick a slug -> custom API URL (raw.githubusercontent.com)
+   - generate a loadstring loader with your script_key
+   - optional: push the file into the repo via the GitHub API
+   ============================================================ */
+
+const $ = id => document.getElementById(id);
+
+const els = {
+  drop: $("drop"), file: $("file"), paste: $("paste"), clearBtn: $("clearBtn"), useBtn: $("useBtn"),
+  slug: $("slug"), slugGen: $("slugGen"), key: $("key"), keyGen: $("keyGen"),
+  repo: $("repo"), branch: $("branch"),
+  tok: $("tok"), publishBtn: $("publishBtn"), pubSlug: $("pubSlug"), pubNote: $("pubNote"),
+  out: $("out"), outName: $("outName"), apiUrl: $("apiUrl"), rawUrl: $("rawUrl"),
+  copyBtn: $("copyBtn"), copyBtn2: $("copyBtn2"), testBtn: $("testBtn"), downBtn: $("downBtn"),
+  lib: $("lib"), libEmpty: $("libEmpty"), libCount: $("libCount"),
+  st1: $("st1"), st2: $("st2"), st3: $("st3"),
+};
+
+/* ---------------- state ---------------- */
+let script = "";                 // raw script text
+let fileName = "my-script.lua";  // source file name
+let fmt = "std";                 // loader format
+
+const SETTINGS_KEY = "apiwip.settings.v1";
+const LIB_KEY      = "apiwip.library.v1";
+const TOKEN_KEY    = "apiwip.token.v1";
+
+let settings = { repo: "fak3hidden/API-WIP", branch: "main", slug: "", key: "Key That You Got" };
+try {
+  const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "null");
+  if (saved && typeof saved === "object") settings = Object.assign(settings, saved);
+} catch(e) {}
+if (localStorage.getItem(TOKEN_KEY)) els.tok.value = localStorage.getItem(TOKEN_KEY);
+
+els.repo.value = settings.repo;
+els.branch.value = settings.branch;
+els.key.value = settings.key || "Key That You Got";
+els.slug.value = settings.slug || "";
+saveSettings();
+renderLibrary();
+
+/* ---------------- helpers ---------------- */
+function saveSettings(){
+  settings.repo = els.repo.value.trim() || "fak3hidden/API-WIP";
+  settings.branch = els.branch.value.trim() || "main";
+  settings.slug = els.slug.value.trim();
+  settings.key = els.key.value.trim() || "Key That You Got";
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch(e) {}
+}
+
+function toast(msg, type){
+  const t = document.createElement("div");
+  t.className = "toast " + (type || "");
+  t.textContent = msg;
+  $("toasts").appendChild(t);
+  setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 350); }, 3200);
+}
+
+function slugify(name){
+  let base = name.replace(/\.(lua|luau|txt)$/i, "");
+  base = base.toLowerCase()
+    .normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return base || "script-" + Date.now().toString(36);
+}
+
+function randKey(){
+  const b = new Uint8Array(6);
+  crypto.getRandomValues(b);
+  return Array.from(b, x => x.toString(16).padStart(2, "0")).join("").toUpperCase();
+}
+function randSlug(){
+  const a = ["v2","pro","beta","stable","rev","alpha","next","final","lite","max"];
+  return a[Math.floor(Math.random()*a.length)] + "-" + randKey().slice(0,4).toLowerCase();
+}
+
+function repoParts(){
+  const r = els.repo.value.trim().replace(/^https?:\/\/(www\.)?github\.com\//, "").replace(/\/$/, "");
+  const [owner, name] = r.split("/");
+  return { owner: owner || "fak3hidden", name: name || "API-WIP", branch: els.branch.value.trim() || "main" };
+}
+
+function apiUrl(){
+  const { owner, name, branch } = repoParts();
+  return `https://raw.githubusercontent.com/${owner}/${name}/${branch}/scripts/${els.slug.value.trim() || slugify(fileName)}.lua`;
+}
+
+function loader(){
+  const url = apiUrl();
+  const key = els.key.value.trim() || "Key That You Got";
+  const slug = els.slug.value.trim() || slugify(fileName);
+  if (fmt === "one"){
+    return `script_key="${key}";loadstring(game:HttpGet("${url}"))()`;
+  }
+  return `script_key="${key}";
+
+loadstring(game:HttpGet("${url}"))()`;
+}
+
+/* ---------------- render ---------------- */
+function render(){
+  els.outName.textContent = (els.slug.value.trim() || slugify(fileName)) + ".lua";
+  const url = apiUrl();
+  els.apiUrl.textContent = url;
+  els.rawUrl.textContent = url;
+  const code = loader();
+  els.out.textContent = code;
+  els.pubSlug.textContent = (els.slug.value.trim() || slugify(fileName)) + ".lua";
+  saveSettings();
+}
+
+function highlightDone(){
+  els.copyBtn.classList.add("done");
+  els.copyBtn2.textContent = "✓ Copied";
+  setTimeout(() => {
+    els.copyBtn.classList.remove("done");
+    els.copyBtn2.textContent = "📋 Copy loader";
+  }, 1600);
+}
+
+/* ---------------- clipboard ---------------- */
+async function copyText(text){
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch(e){
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+      return true;
+    } catch(e2) { return false; }
+  }
+}
+
+els.copyBtn.addEventListener("click", async () => {
+  const ok = await copyText(loader());
+  toast(ok ? "Loader copied to clipboard" : "Copy failed — select the code manually", ok ? "ok" : "err");
+  if (ok) highlightDone();
+});
+els.copyBtn2.addEventListener("click", async () => {
+  const ok = await copyText(loader());
+  toast(ok ? "Loader copied to clipboard" : "Copy failed", ok ? "ok" : "err");
+  if (ok) highlightDone();
+});
+
+/* ---------------- upload ---------------- */
+function setScript(text, name){
+  script = text;
+  fileName = name || "my-script.lua";
+  if (!els.slug.value.trim()) els.slug.value = slugify(fileName);
+  els.paste.value = text;
+  els.st1.classList.add("act");
+  els.st2.classList.add("act");
+  els.st3.classList.add("act");
+  render();
+  toast("Script loaded — your API is ready below", "ok");
+}
+
+els.drop.addEventListener("click", () => els.file.click());
+els.drop.addEventListener("dragover", e => { e.preventDefault(); els.drop.classList.add("over"); });
+els.drop.addEventListener("dragleave", () => els.drop.classList.remove("over"));
+els.drop.addEventListener("drop", e => {
+  e.preventDefault();
+  els.drop.classList.remove("over");
+  const f = e.dataTransfer.files && e.dataTransfer.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => setScript(String(reader.result), f.name);
+  reader.readAsText(f);
+});
+els.file.addEventListener("change", () => {
+  const f = els.file.files && els.file.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => setScript(String(reader.result), f.name);
+  reader.readAsText(f);
+  els.file.value = "";
+});
+
+els.useBtn.addEventListener("click", () => {
+  if (!els.paste.value.trim()){ toast("Paste some code first", "warn"); return; }
+  setScript(els.paste.value, "my-script.lua");
+});
+els.clearBtn.addEventListener("click", () => {
+  els.paste.value = "";
+  script = "";
+  toast("Cleared");
+});
+
+/* ---------------- customize ---------------- */
+els.slug.addEventListener("input", render);
+els.key.addEventListener("input", render);
+els.repo.addEventListener("input", render);
+els.branch.addEventListener("input", render);
+els.key.addEventListener("change", () => { if (!els.key.value.trim()) els.key.value = "Key That You Got"; render(); });
+els.keyGen.addEventListener("click", () => { els.key.value = randKey(); render(); toast("New key generated"); });
+els.slugGen.addEventListener("click", () => { els.slug.value = randSlug(); render(); });
+
+/* ---------------- format tabs ---------------- */
+document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => {
+  document.querySelectorAll(".tab").forEach(x => x.classList.remove("on"));
+  t.classList.add("on");
+  fmt = t.dataset.fmt;
+  render();
+}));
+
+/* ---------------- test URL ---------------- */
+els.testBtn.addEventListener("click", async () => {
+  const url = apiUrl();
+  els.testBtn.disabled = true;
+  els.testBtn.textContent = "⏳ Checking…";
+  try {
+    const r = await fetch(url, { method: "HEAD" });
+    if (r.ok){
+      els.testBtn.textContent = "✓ Live — script is reachable";
+      els.testBtn.style.borderColor = "var(--ok)";
+      els.testBtn.style.color = "var(--ok)";
+      toast("API URL is live ✔", "ok");
+    } else if (r.status === 404){
+      els.testBtn.textContent = "✗ 404 — file not in repo yet (publish it!)";
+      els.testBtn.style.borderColor = "var(--err)";
+      els.testBtn.style.color = "var(--err)";
+      toast("URL returned 404 — publish the script to the repo first", "err");
+    } else {
+      els.testBtn.textContent = "⚠ HTTP " + r.status;
+      els.testBtn.style.borderColor = "var(--warn)";
+      els.testBtn.style.color = "var(--warn)";
+    }
+  } catch(e){
+    els.testBtn.textContent = "✗ Can't reach URL";
+    els.testBtn.style.borderColor = "var(--err)";
+    els.testBtn.style.color = "var(--err)";
+  }
+  setTimeout(() => { els.testBtn.disabled = false; }, 1500);
+});
+
+/* ---------------- download script ---------------- */
+els.downBtn.addEventListener("click", () => {
+  if (!script.trim()){ toast("Upload or paste a script first", "warn"); return; }
+  const blob = new Blob([script], { type: "text/plain" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = (els.slug.value.trim() || slugify(fileName)) + ".lua";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  toast("Script downloaded — commit it to <repo>/scripts/ to make the API live", "ok");
+});
+
+/* ---------------- GitHub publish ---------------- */
+function b64(str){ return btoa(unescape(encodeURIComponent(str))); }
+
+els.publishBtn.addEventListener("click", async () => {
+  const token = els.tok.value.trim();
+  if (!token){
+    toast("Paste a GitHub token first (Contents: read & write)", "warn");
+    els.tok.focus();
+    return;
+  }
+  if (!script.trim()){
+    toast("Upload or paste a script first", "warn");
+    return;
+  }
+  const { owner, name, branch } = repoParts();
+  const slug = els.slug.value.trim() || slugify(fileName);
+  const path = "scripts/" + slug + ".lua";
+
+  els.publishBtn.disabled = true;
+  els.publishBtn.textContent = "⏳ Publishing…";
+
+  try {
+    const res = await fetch(`https://api.github.com/repos/${owner}/${name}/contents/${path}`, {
+      method: "PUT",
+      headers: {
+        "Authorization": "Bearer " + token,
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message: `Add ${path} via API-WIP uploader`,
+        content: b64(script),
+        branch,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok){
+      localStorage.setItem(TOKEN_KEY, token);
+      els.pubNote.className = "pub-note good";
+      els.pubNote.innerHTML = "✅ <b>Published!</b> Your API is now live — copy the loader and run it.<br>" +
+        "If it's a cached 404 for a minute or two, hit <b>Test URL</b> again.";
+      toast("Script published to " + path, "ok");
+      addToLibrary(slug, apiUrl(), Date.now());
+      renderLibrary();
+    } else {
+      const msg = data.message || ("HTTP " + res.status);
+      if (res.status === 401 || res.status === 403) {
+        els.pubNote.className = "pub-note err";
+        els.pubNote.innerHTML = "❌ GitHub rejected the token — check that it has <b>Contents: read &amp; write</b> permission on this repo.";
+      } else {
+        els.pubNote.className = "pub-note err";
+        els.pubNote.innerHTML = "❌ " + msg + " (HTTP " + res.status + ")";
+      }
+      toast("Publish failed: " + msg, "err");
+    }
+  } catch(e){
+    els.pubNote.className = "pub-note err";
+    els.pubNote.innerHTML = "❌ Network error while contacting GitHub — are you online?";
+    toast("Network error — could not reach GitHub", "err");
+  }
+  els.publishBtn.disabled = false;
+  els.publishBtn.textContent = "⬆ Publish " + (els.slug.value.trim() || slugify(fileName)) + ".lua to the repo";
+});
+
+els.tok.addEventListener("input", () => {
+  if (els.tok.value.trim()) localStorage.setItem(TOKEN_KEY, els.tok.value.trim());
+  else localStorage.removeItem(TOKEN_KEY);
+});
+
+/* ---------------- library ---------------- */
+function getLibrary(){
+  try { return JSON.parse(localStorage.getItem(LIB_KEY) || "[]"); } catch(e){ return []; }
+}
+function addToLibrary(slug, url, ts){
+  const lib = getLibrary().filter(x => x.slug !== slug);
+  lib.unshift({ slug, url, ts });
+  try { localStorage.setItem(LIB_KEY, JSON.stringify(lib.slice(0, 24))); } catch(e){}
+}
+function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+function renderLibrary(){
+  const lib = getLibrary();
+  els.libCount.textContent = lib.length ? `(${lib.length})` : "";
+  els.libEmpty.style.display = lib.length ? "none" : "block";
+  els.lib.innerHTML = "";
+  lib.forEach((item, i) => {
+    const row = document.createElement("div");
+    row.className = "lib-item";
+    row.innerHTML =
+      `<div style="min-width:0">
+         <div class="name">${esc(item.slug)}.lua</div>
+         <div class="sub">${esc(item.url)}</div>
+       </div>
+       <div class="mini">
+         <span class="status wait" id="st-${i}">check</span>
+         <button class="btn btn-ghost btn-sm" data-load="${i}" title="Load into editor" type="button">open</button>
+         <button class="btn btn-ghost btn-sm" data-del="${i}" title="Remove" type="button">✕</button>
+       </div>`;
+    els.lib.appendChild(row);
+
+    const stat = row.querySelector(`#st-${i}`);
+    fetch(item.url, { method: "HEAD" }).then(r => {
+      stat.textContent = r.ok ? "live" : "404";
+      stat.className = "status " + (r.ok ? "live" : "dead");
+    }).catch(() => { stat.textContent = "n/a"; stat.className = "status wait"; });
+
+    row.querySelector(`[data-load="${i}"]`).addEventListener("click", () => {
+      els.slug.value = item.slug;
+      els.paste.value = "";
+      setScript("-- loaded from library: " + item.url + "\n", item.slug + ".lua");
+      toast("Slug loaded — paste or re-fetch the code to edit");
+    });
+    row.querySelector(`[data-del="${i}"]`).addEventListener("click", () => {
+      const lib2 = getLibrary().filter((_, j) => j !== i);
+      try { localStorage.setItem(LIB_KEY, JSON.stringify(lib2)); } catch(e){}
+      renderLibrary();
+    });
+  });
+}
+
+/* ---------------- init ---------------- */
+render();
+</script>
+</body>
+</html>
