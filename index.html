@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>API-WIP · Script Uploader</title>
-<meta name="description" content="Upload a Lua script and instantly get a loadstring API for it.">
+<meta name="description" content="Upload a Lua script, publish it to your GitHub repo, and instantly get a loadstring API for it.">
 <style>
   :root{
     --bg:#0b0f17;
@@ -68,7 +68,7 @@
     background:linear-gradient(90deg,#c9c4ff,var(--accent-2));
     -webkit-background-clip:text;background-clip:text;color:transparent;
   }
-  .hero p{color:var(--muted);margin-top:12px;font-size:15px;max-width:620px;margin-inline:auto;line-height:1.6}
+  .hero p{color:var(--muted);margin-top:12px;font-size:15px;max-width:660px;margin-inline:auto;line-height:1.6}
   .steps{display:flex;justify-content:center;gap:0;margin-top:26px;flex-wrap:wrap}
   .step{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px;font-weight:600}
   .step .n{
@@ -164,8 +164,6 @@
     padding:16px;overflow:auto;font-family:var(--mono);font-size:12.8px;line-height:1.75;
     color:#c9d2e6;white-space:pre-wrap;word-break:break-all;max-height:340px;
   }
-  .code pre .k{color:var(--accent-2)}        /* string values / urls */
-  .code pre .s{color:#f59e0b}                /* script_key */
   .code .copy{
     position:absolute;top:36px;right:12px;opacity:0;transition:.2s;
     background:rgba(124,108,246,.16);border:1px solid var(--border-2);color:var(--text);
@@ -182,6 +180,14 @@
   .meta-actions .btn{flex:1;min-width:120px}
 
   /* ---------- publish ---------- */
+  .how{margin-top:14px;display:grid;gap:9px}
+  .how-step{font-size:12.5px;color:var(--muted);line-height:1.55;padding-left:27px;position:relative}
+  .how-step b{
+    position:absolute;left:0;top:0;width:18px;height:18px;border-radius:50%;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#0b0f17;
+    font-size:11px;display:grid;place-items:center;font-weight:800;
+  }
+  .how-step code{font-family:var(--mono);color:var(--accent-2);font-size:11.5px}
   .pub-note{
     margin-top:14px;background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.22);
     border-radius:10px;padding:11px 13px;font-size:12.5px;color:#d9c48a;line-height:1.6;
@@ -196,10 +202,21 @@
   details.pub summary::before{content:"▸";transition:.2s;color:var(--muted)}
   details.pub[open] summary::before{transform:rotate(90deg)}
   details.pub .pub-body{padding:4px 14px 14px}
-  .token-note{font-size:11.5px;color:var(--muted-2);margin-top:7px;line-height:1.55}
+  .tok-links{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .tok-links a{flex:1;min-width:130px;text-decoration:none;justify-content:center}
+  .tok-type{margin-top:8px;font-size:11.5px;color:var(--muted);line-height:1.6}
+  .tok-type b{color:var(--text)}
+  .tok-type code{font-family:var(--mono);font-size:11px;color:var(--accent-2)}
+  .pub-status{margin-top:12px;border-radius:9px;padding:11px 13px;font-size:12.5px;line-height:1.6;display:none}
+  .pub-status.show{display:block}
+  .pub-status.wait{background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);color:#d9c48a}
+  .pub-status.ok{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);color:#a7e6cc}
+  .pub-status.err{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);color:#f0b3b3}
+  .pub-status a{color:inherit;font-weight:700}
+  .token-note{font-size:11.5px;color:var(--muted-2);margin-top:9px;line-height:1.55}
   .token-note b{color:var(--warn);font-weight:700}
 
-  /* ---------- library ---------- */
+  /* ---------- lists (library / repo) ---------- */
   .lib-item{
     display:flex;align-items:center;justify-content:space-between;gap:10px;
     border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-top:10px;background:#0d1320;
@@ -210,7 +227,9 @@
   .status.live{color:var(--ok);background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3)}
   .status.dead{color:var(--err);background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3)}
   .status.wait{color:var(--warn);background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3)}
-  .lib-item .mini{display:flex;gap:6px}
+  .lib-item .mini{display:flex;gap:6px;align-items:center}
+  .lib-item .mini a{color:var(--muted);text-decoration:none;font-size:13px;padding:0 2px}
+  .lib-item .mini a:hover{color:var(--accent-2)}
   .lib-empty{color:var(--muted-2);font-size:13px;margin-top:14px;line-height:1.6}
 
   /* ---------- footer ---------- */
@@ -242,15 +261,15 @@
 
 <main class="wrap">
   <section class="hero">
-    <h1>Upload a script. Get an API.</h1>
-    <p>Drop your Lua script in, give it a name, and instantly get a ready-to-paste
-    <code style="font-family:var(--mono);font-size:13px">loadstring(game:HttpGet(...))</code> loader with your custom URL.</p>
+    <h1>Upload a script. Publish it. Get an API.</h1>
+    <p>Drop your Lua script in, publish it straight to your GitHub repo with one click, and instantly get a
+    <code style="font-family:var(--mono);font-size:13px">loadstring(game:HttpGet(...))</code> loader that fetches it from there.</p>
     <div class="steps">
       <div class="step act" id="st1"><span class="n">1</span> Upload script</div>
       <div class="bar"></div>
       <div class="step" id="st2"><span class="n">2</span> Customize URL &amp; key</div>
       <div class="bar"></div>
-      <div class="step" id="st3"><span class="n">3</span> Copy your API</div>
+      <div class="step" id="st3"><span class="n">3</span> Publish → copy your API</div>
     </div>
   </section>
 
@@ -295,7 +314,7 @@
         </div>
 
         <div class="fld">
-          <label for="repo">Repo base <span class="hint">(where the script file lives)</span></label>
+          <label for="repo">Repo base <span class="hint">(where the script gets published)</span></label>
           <input type="text" id="repo" value="fak3hidden/API-WIP" autocomplete="off">
         </div>
         <div class="fld">
@@ -305,21 +324,36 @@
       </section>
 
       <section class="card">
-        <h2><span class="dot"></span> Publish to the repo <span style="text-transform:none;font-weight:500">(optional)</span></h2>
-        <div class="pub-note" id="pubNote">
-          The generated loader fetches your script from <b>raw.githubusercontent.com</b>, so the file needs to exist in the repo.
-          To push it straight from here, open <b>Publish with GitHub API</b> below and paste a
-          <b>fine-grained</b> personal access token with <b>Contents: read &amp; write</b> on this repo.
-          The token is kept only in your browser (localStorage) and sent only to <code style="font-family:var(--mono)">api.github.com</code>.
+        <h2><span class="dot"></span> 3 · Publish to your GitHub</h2>
+        <div class="how">
+          <div class="how-step"><b>1</b> Click publish → your script goes to <code>scripts/&lt;slug&gt;.lua</code> in the repo</div>
+          <div class="how-step"><b>2</b> GitHub serves it from <code>raw.githubusercontent.com</code></div>
+          <div class="how-step"><b>3</b> Your loader fetches it &amp; runs it — that's what makes it actually work</div>
         </div>
-        <details class="pub">
-          <summary>Publish with GitHub API</summary>
+
+        <div class="pub-note" id="pubNote">
+          To publish you need a <b>GitHub token</b> — create one once (takes ~2 min) with the links below.
+          It only needs <b>Contents: read &amp; write</b> on this repo. The token is kept only in your browser
+          (localStorage) and sent only to <code style="font-family:var(--mono)">api.github.com</code>.
+        </div>
+
+        <details class="pub" id="pubDetails">
+          <summary>Open to paste your token &amp; publish</summary>
           <div class="pub-body">
-            <div class="fld"><label for="tok">Token (fine-grained PAT, Contents read/write)</label>
-              <input type="password" id="tok" placeholder="github_pat_..." autocomplete="off">
+            <div class="fld">
+              <label for="tok">GitHub token</label>
+              <input type="password" id="tok" placeholder="github_pat_...  or  ghp_..." autocomplete="off">
+              <div class="tok-type" id="tokType">No token yet — create one with the buttons below.</div>
             </div>
-            <button class="btn btn-primary btn-block" id="publishBtn" type="button">⬆ Publish <span id="pubSlug"></span> to the repo</button>
-            <p class="token-note">🔒 Stored in <b>localStorage</b> on this device only. Cleared if you refresh with Shift or use "Clear saved token".</p>
+            <div class="tok-links">
+              <a class="btn btn-ghost btn-sm" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">＋ Fine-grained token <span style="font-size:10px;opacity:.7">(recommended)</span></a>
+              <a class="btn btn-ghost btn-sm" href="https://github.com/settings/tokens/new" target="_blank" rel="noopener">＋ Classic token</a>
+            </div>
+            <button class="btn btn-primary btn-block" id="publishBtn" type="button">⬆ Publish script to the repo</button>
+            <div class="pub-status" id="pubStatus"></div>
+            <p class="token-note">🔒 Stored in <b>localStorage</b> on this device only.
+            Fine-grained: <b>Repository access → Only select repositories → your repo</b>, then <b>Repository permissions → Contents → Read and write</b>.
+            Classic: just tick <b>repo</b>.</p>
           </div>
         </details>
       </section>
@@ -328,7 +362,7 @@
     <!-- RIGHT COLUMN -->
     <div>
       <section class="card">
-        <h2><span class="dot"></span> 3 · Your API</h2>
+        <h2><span class="dot"></span> Your API</h2>
 
         <div class="out-tabs">
           <button class="tab on" data-fmt="std" type="button">Standard</button>
@@ -354,9 +388,15 @@
       </section>
 
       <section class="card">
-        <h2><span class="dot"></span> Your scripts <span style="text-transform:none;font-weight:500" id="libCount"></span></h2>
+        <h2><span class="dot"></span> Published in your repo <span style="text-transform:none;font-weight:500">scripts/</span></h2>
+        <div id="repoFiles"></div>
+        <div class="lib-empty" id="repoEmpty">Loading scripts/ from GitHub…</div>
+      </section>
+
+      <section class="card">
+        <h2><span class="dot"></span> Saved here <span style="text-transform:none;font-weight:500" id="libCount"></span></h2>
         <div id="lib"></div>
-        <div class="lib-empty" id="libEmpty">Nothing here yet — upload a script and hit <b>“Save to library”</b> (or publish it) to keep a record with live/dead status.</div>
+        <div class="lib-empty" id="libEmpty">Nothing saved yet — published scripts are tracked here automatically.</div>
       </section>
     </div>
   </div>
@@ -364,7 +404,7 @@
 
 <footer>
   <div class="wrap">
-    Powered by <code>fak3hidden/API-WIP</code> · scripts are served via
+    Powered by <code>fak3hidden/API-WIP</code> · scripts are published to <code>scripts/</code>, served via
     <code>raw.githubusercontent.com</code> and loaded with <code>loadstring(game:HttpGet(...))</code>
   </div>
 </footer>
@@ -378,7 +418,8 @@
    - upload / paste a Lua script
    - pick a slug -> custom API URL (raw.githubusercontent.com)
    - generate a loadstring loader with your script_key
-   - optional: push the file into the repo via the GitHub API
+   - publish the script into your repo via the GitHub API
+   - verify it's live + list scripts already in the repo
    ============================================================ */
 
 const $ = id => document.getElementById(id);
@@ -387,10 +428,11 @@ const els = {
   drop: $("drop"), file: $("file"), paste: $("paste"), clearBtn: $("clearBtn"), useBtn: $("useBtn"),
   slug: $("slug"), slugGen: $("slugGen"), key: $("key"), keyGen: $("keyGen"),
   repo: $("repo"), branch: $("branch"),
-  tok: $("tok"), publishBtn: $("publishBtn"), pubSlug: $("pubSlug"), pubNote: $("pubNote"),
+  tok: $("tok"), tokType: $("tokType"), publishBtn: $("publishBtn"), pubNote: $("pubNote"), pubStatus: $("pubStatus"),
   out: $("out"), outName: $("outName"), apiUrl: $("apiUrl"), rawUrl: $("rawUrl"),
   copyBtn: $("copyBtn"), copyBtn2: $("copyBtn2"), testBtn: $("testBtn"), downBtn: $("downBtn"),
   lib: $("lib"), libEmpty: $("libEmpty"), libCount: $("libCount"),
+  repoFiles: $("repoFiles"), repoEmpty: $("repoEmpty"),
   st1: $("st1"), st2: $("st2"), st3: $("st3"),
 };
 
@@ -416,8 +458,13 @@ els.key.value = settings.key || "Key That You Got";
 els.slug.value = settings.slug || "";
 saveSettings();
 renderLibrary();
+listRepoScripts();
+updateTokHint();
 
 /* ---------------- helpers ---------------- */
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+
 function saveSettings(){
   settings.repo = els.repo.value.trim() || "fak3hidden/API-WIP";
   settings.branch = els.branch.value.trim() || "main";
@@ -459,15 +506,16 @@ function repoParts(){
   return { owner: owner || "fak3hidden", name: name || "API-WIP", branch: els.branch.value.trim() || "main" };
 }
 
+function currentSlug(){ return els.slug.value.trim() || slugify(fileName); }
+
 function apiUrl(){
   const { owner, name, branch } = repoParts();
-  return `https://raw.githubusercontent.com/${owner}/${name}/${branch}/scripts/${els.slug.value.trim() || slugify(fileName)}.lua`;
+  return `https://raw.githubusercontent.com/${owner}/${name}/${branch}/scripts/${currentSlug()}.lua`;
 }
 
 function loader(){
   const url = apiUrl();
   const key = els.key.value.trim() || "Key That You Got";
-  const slug = els.slug.value.trim() || slugify(fileName);
   if (fmt === "one"){
     return `script_key="${key}";loadstring(game:HttpGet("${url}"))()`;
   }
@@ -478,13 +526,11 @@ loadstring(game:HttpGet("${url}"))()`;
 
 /* ---------------- render ---------------- */
 function render(){
-  els.outName.textContent = (els.slug.value.trim() || slugify(fileName)) + ".lua";
+  els.outName.textContent = currentSlug() + ".lua";
   const url = apiUrl();
   els.apiUrl.textContent = url;
   els.rawUrl.textContent = url;
-  const code = loader();
-  els.out.textContent = code;
-  els.pubSlug.textContent = (els.slug.value.trim() || slugify(fileName)) + ".lua";
+  els.out.textContent = loader();
   saveSettings();
 }
 
@@ -537,7 +583,7 @@ function setScript(text, name){
   els.st2.classList.add("act");
   els.st3.classList.add("act");
   render();
-  toast("Script loaded — your API is ready below", "ok");
+  toast("Script loaded — publish it to make the API live", "ok");
 }
 
 els.drop.addEventListener("click", () => els.file.click());
@@ -574,8 +620,8 @@ els.clearBtn.addEventListener("click", () => {
 /* ---------------- customize ---------------- */
 els.slug.addEventListener("input", render);
 els.key.addEventListener("input", render);
-els.repo.addEventListener("input", render);
-els.branch.addEventListener("input", render);
+els.repo.addEventListener("input", () => { render(); scheduleList(); updateTokHint(); });
+els.branch.addEventListener("input", () => { render(); scheduleList(); updateTokHint(); });
 els.key.addEventListener("change", () => { if (!els.key.value.trim()) els.key.value = "Key That You Got"; render(); });
 els.keyGen.addEventListener("click", () => { els.key.value = randKey(); render(); toast("New key generated"); });
 els.slugGen.addEventListener("click", () => { els.slug.value = randSlug(); render(); });
@@ -601,7 +647,7 @@ els.testBtn.addEventListener("click", async () => {
       els.testBtn.style.color = "var(--ok)";
       toast("API URL is live ✔", "ok");
     } else if (r.status === 404){
-      els.testBtn.textContent = "✗ 404 — file not in repo yet (publish it!)";
+      els.testBtn.textContent = "✗ 404 — not published yet (hit Publish!)";
       els.testBtn.style.borderColor = "var(--err)";
       els.testBtn.style.color = "var(--err)";
       toast("URL returned 404 — publish the script to the repo first", "err");
@@ -624,30 +670,73 @@ els.downBtn.addEventListener("click", () => {
   const blob = new Blob([script], { type: "text/plain" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = (els.slug.value.trim() || slugify(fileName)) + ".lua";
+  a.download = currentSlug() + ".lua";
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-  toast("Script downloaded — commit it to <repo>/scripts/ to make the API live", "ok");
+  toast("Script downloaded — or just hit Publish to push it straight to GitHub", "ok");
 });
 
-/* ---------------- GitHub publish ---------------- */
+/* ---------------- token helpers ---------------- */
+function tokenKind(t){
+  if (t.startsWith("github_pat_")) return "fine";
+  if (t.startsWith("ghp_") || t.startsWith("gho_") || t.startsWith("ghu_") || t.startsWith("ghs_")) return "classic";
+  return "";
+}
+
+function updateTokHint(){
+  const t = els.tok.value.trim();
+  const { owner, name } = repoParts();
+  const repoLabel = esc(owner + "/" + name);
+  if (!t){
+    els.tokType.innerHTML = 'No token yet — create one (2 min) with the buttons below. It only needs <b>Contents: read &amp; write</b> on <code>' + repoLabel + '</code>.';
+  } else if (tokenKind(t) === "fine"){
+    els.tokType.innerHTML = '✅ <b>Fine-grained token detected.</b> Make sure it has <b>Repository access → Only select repositories → ' + repoLabel + '</b> and <b>Repository permissions → Contents → Read and write</b>.';
+  } else if (tokenKind(t) === "classic"){
+    els.tokType.innerHTML = '✅ <b>Classic token detected.</b> Make sure the <b>repo</b> scope is ticked. (Fine-grained is safer, but this works.)';
+  } else {
+    els.tokType.innerHTML = '⚠ This doesn\'t look like a GitHub token — it should start with <code>github_pat_</code> or <code>ghp_</code>.';
+  }
+}
+els.tok.addEventListener("input", () => {
+  updateTokHint();
+  if (els.tok.value.trim()) localStorage.setItem(TOKEN_KEY, els.tok.value.trim());
+  else localStorage.removeItem(TOKEN_KEY);
+});
+
+/* ---------------- publish to GitHub ---------------- */
 function b64(str){ return btoa(unescape(encodeURIComponent(str))); }
+
+function setPubStatus(kind, html){
+  els.pubStatus.className = "pub-status " + kind + " show";
+  els.pubStatus.innerHTML = html;
+}
+
+async function pollRaw(url, tries, delayMs){
+  for (let i = 0; i < tries; i++){
+    try {
+      const r = await fetch(url, { method: "HEAD" });
+      if (r.ok) return true;
+      if (r.status === 404){ await sleep(delayMs); continue; }
+      return false;
+    } catch(e){ await sleep(delayMs); }
+  }
+  return false;
+}
 
 els.publishBtn.addEventListener("click", async () => {
   const token = els.tok.value.trim();
-  if (!token){
-    toast("Paste a GitHub token first (Contents: read & write)", "warn");
-    els.tok.focus();
-    return;
-  }
-  if (!script.trim()){
-    toast("Upload or paste a script first", "warn");
-    return;
+  if (!token){ toast("Paste a GitHub token first (see the links above)", "warn"); els.tok.focus(); return; }
+  if (!script.trim()){ toast("Upload or paste a script first", "warn"); return; }
+  if (tokenKind(token) !== "fine" && tokenKind(token) !== "classic"){
+    toast("That doesn't look like a GitHub token", "err"); return;
   }
   const { owner, name, branch } = repoParts();
-  const slug = els.slug.value.trim() || slugify(fileName);
+  const slug = currentSlug();
   const path = "scripts/" + slug + ".lua";
+  const url = apiUrl();
+  const fileOnGh = `https://github.com/${owner}/${name}/blob/${branch}/${path}`;
 
+  setPubStatus("wait", "⏳ Publishing <code>" + esc(path) + "</code> to <code>" + esc(owner + "/" + name) + "</code> …");
   els.publishBtn.disabled = true;
   els.publishBtn.textContent = "⏳ Publishing…";
 
@@ -667,40 +756,122 @@ els.publishBtn.addEventListener("click", async () => {
       }),
     });
     const data = await res.json().catch(() => ({}));
+
     if (res.ok){
       localStorage.setItem(TOKEN_KEY, token);
-      els.pubNote.className = "pub-note good";
-      els.pubNote.innerHTML = "✅ <b>Published!</b> Your API is now live — copy the loader and run it.<br>" +
-        "If it's a cached 404 for a minute or two, hit <b>Test URL</b> again.";
-      toast("Script published to " + path, "ok");
-      addToLibrary(slug, apiUrl(), Date.now());
+      addToLibrary(slug, url, Date.now());
       renderLibrary();
+      setPubStatus("wait", "✅ <b>Published to GitHub!</b> Waiting for <code>raw.githubusercontent.com</code> to serve it…");
+      const live = await pollRaw(url, 10, 2000);
+      if (live){
+        setPubStatus("ok", "🎉 <b>It's live!</b> Copy the loader and it will run your script. <a href=\"" + fileOnGh + "\" target=\"_blank\" rel=\"noopener\">Open on GitHub →</a>");
+        els.pubNote.className = "pub-note good";
+        els.pubNote.innerHTML = "✅ <b>Published &amp; live.</b> Your API works — grab the loader on the right.";
+        toast("Script is LIVE on GitHub ✔", "ok");
+      } else {
+        setPubStatus("warn", "✅ <b>Published.</b> The raw CDN is still catching up — wait ~1 min and hit <b>Test URL</b>. <a href=\"" + fileOnGh + "\" target=\"_blank\" rel=\"noopener\">Open on GitHub →</a>");
+        els.pubNote.className = "pub-note good";
+        els.pubNote.innerHTML = "✅ <b>Published.</b> Raw CDN still caching — retry <b>Test URL</b> in ~1 min.";
+        toast("Published — waiting for the CDN", "warn");
+      }
+      listRepoScripts();
     } else {
       const msg = data.message || ("HTTP " + res.status);
-      if (res.status === 401 || res.status === 403) {
-        els.pubNote.className = "pub-note err";
-        els.pubNote.innerHTML = "❌ GitHub rejected the token — check that it has <b>Contents: read &amp; write</b> permission on this repo.";
+      if (res.status === 401){
+        setPubStatus("err", "❌ Token was rejected (401). It may be expired — create a new one with the links above.");
+        toast("Publish failed: token rejected (401)", "err");
+      } else if (res.status === 403){
+        setPubStatus("err", "❌ GitHub says: <b>" + esc(msg) + "</b>.<br>Fix: the token needs <b>Contents: read &amp; write</b> permission on <b>" + esc(owner + "/" + name) + "</b>.");
+        toast("Publish failed: token lacks Contents write permission", "err");
       } else {
-        els.pubNote.className = "pub-note err";
-        els.pubNote.innerHTML = "❌ " + msg + " (HTTP " + res.status + ")";
+        setPubStatus("err", "❌ " + esc(msg) + " (HTTP " + res.status + ")");
+        toast("Publish failed: " + msg, "err");
       }
-      toast("Publish failed: " + msg, "err");
     }
   } catch(e){
-    els.pubNote.className = "pub-note err";
-    els.pubNote.innerHTML = "❌ Network error while contacting GitHub — are you online?";
+    setPubStatus("err", "❌ Network error while contacting GitHub — are you online?");
     toast("Network error — could not reach GitHub", "err");
   }
   els.publishBtn.disabled = false;
-  els.publishBtn.textContent = "⬆ Publish " + (els.slug.value.trim() || slugify(fileName)) + ".lua to the repo";
+  els.publishBtn.textContent = "⬆ Publish script to the repo";
 });
 
-els.tok.addEventListener("input", () => {
-  if (els.tok.value.trim()) localStorage.setItem(TOKEN_KEY, els.tok.value.trim());
-  else localStorage.removeItem(TOKEN_KEY);
-});
+/* ---------------- scripts already in the repo ---------------- */
+let listTimer;
+function scheduleList(){ clearTimeout(listTimer); listTimer = setTimeout(listRepoScripts, 600); }
 
-/* ---------------- library ---------------- */
+async function listRepoScripts(){
+  const { owner, name, branch } = repoParts();
+  els.repoFiles.innerHTML = "";
+  els.repoEmpty.style.display = "block";
+  els.repoEmpty.textContent = "Loading scripts/ from GitHub…";
+  try {
+    const r = await fetch(`https://api.github.com/repos/${owner}/${name}/contents/scripts?ref=${encodeURIComponent(branch)}`);
+    if (!r.ok){
+      els.repoEmpty.textContent = (r.status === 404)
+        ? "No <code style='font-family:var(--mono)'>scripts/</code> folder yet — publish your first script and it'll be created for you."
+        : "Couldn't read the repo — is <code style='font-family:var(--mono)'>" + esc(owner + "/" + name) + "</code> public?";
+      return;
+    }
+    const data = await r.json();
+    const files = (Array.isArray(data) ? data : []).filter(f => /\.(lua|luau)$/i.test(f.name));
+    if (!files.length){
+      els.repoEmpty.textContent = "The scripts/ folder is empty — publish your first script!";
+      return;
+    }
+    els.repoEmpty.style.display = "none";
+    files.forEach((f, i) => renderRepoFile(f, i, owner, name, branch));
+  } catch(e){
+    els.repoEmpty.textContent = "Couldn't reach GitHub — check your connection.";
+  }
+}
+
+function renderRepoFile(f, i, owner, name, branch){
+  const raw = `https://raw.githubusercontent.com/${owner}/${name}/${branch}/scripts/${f.name}`;
+  const gh  = `https://github.com/${owner}/${name}/blob/${branch}/scripts/${f.name}`;
+  const row = document.createElement("div");
+  row.className = "lib-item";
+  row.innerHTML =
+    `<div style="min-width:0">
+       <div class="name">scripts/${esc(f.name)}</div>
+       <div class="sub">${esc(raw)}</div>
+     </div>
+     <div class="mini">
+       <span class="status wait">check</span>
+       <a href="${gh}" target="_blank" rel="noopener" title="Open on GitHub">⎇</a>
+       <button class="btn btn-ghost btn-sm" data-rcopy="${i}" type="button">loader</button>
+       <button class="btn btn-ghost btn-sm" data-redit="${i}" type="button">edit</button>
+     </div>`;
+  els.repoFiles.appendChild(row);
+
+  const stat = row.querySelector(".status");
+  fetch(raw, { method: "HEAD" }).then(r => {
+    stat.textContent = r.ok ? "live" : "404";
+    stat.className = "status " + (r.ok ? "live" : "dead");
+  }).catch(() => { stat.textContent = "n/a"; stat.className = "status wait"; });
+
+  row.querySelector(`[data-rcopy="${i}"]`).addEventListener("click", async () => {
+    els.slug.value = f.name.replace(/\.(lua|luau)$/i, "");
+    render();
+    const ok = await copyText(loader());
+    toast(ok ? "Loader for " + f.name + " copied ✔" : "Copy failed", ok ? "ok" : "err");
+    if (ok) highlightDone();
+  });
+  row.querySelector(`[data-redit="${i}"]`).addEventListener("click", async () => {
+    toast("Fetching " + f.name + " from GitHub…");
+    try {
+      const r = await fetch(raw);
+      const txt = await r.text();
+      els.slug.value = f.name.replace(/\.(lua|luau)$/i, "");
+      setScript(txt, f.name);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch(e){
+      toast("Couldn't fetch the script", "err");
+    }
+  });
+}
+
+/* ---------------- saved library ---------------- */
 function getLibrary(){
   try { return JSON.parse(localStorage.getItem(LIB_KEY) || "[]"); } catch(e){ return []; }
 }
@@ -709,7 +880,6 @@ function addToLibrary(slug, url, ts){
   lib.unshift({ slug, url, ts });
   try { localStorage.setItem(LIB_KEY, JSON.stringify(lib.slice(0, 24))); } catch(e){}
 }
-function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 
 function renderLibrary(){
   const lib = getLibrary();
@@ -725,23 +895,29 @@ function renderLibrary(){
          <div class="sub">${esc(item.url)}</div>
        </div>
        <div class="mini">
-         <span class="status wait" id="st-${i}">check</span>
-         <button class="btn btn-ghost btn-sm" data-load="${i}" title="Load into editor" type="button">open</button>
-         <button class="btn btn-ghost btn-sm" data-del="${i}" title="Remove" type="button">✕</button>
+         <span class="status wait" id="ls-${i}">check</span>
+         <button class="btn btn-ghost btn-sm" data-load="${i}" title="Fetch script from GitHub into the editor" type="button">open</button>
+         <button class="btn btn-ghost btn-sm" data-del="${i}" title="Remove from saved list" type="button">✕</button>
        </div>`;
     els.lib.appendChild(row);
 
-    const stat = row.querySelector(`#st-${i}`);
+    const stat = row.querySelector(`#ls-${i}`);
     fetch(item.url, { method: "HEAD" }).then(r => {
       stat.textContent = r.ok ? "live" : "404";
       stat.className = "status " + (r.ok ? "live" : "dead");
     }).catch(() => { stat.textContent = "n/a"; stat.className = "status wait"; });
 
-    row.querySelector(`[data-load="${i}"]`).addEventListener("click", () => {
-      els.slug.value = item.slug;
-      els.paste.value = "";
-      setScript("-- loaded from library: " + item.url + "\n", item.slug + ".lua");
-      toast("Slug loaded — paste or re-fetch the code to edit");
+    row.querySelector(`[data-load="${i}"]`).addEventListener("click", async () => {
+      toast("Fetching script from GitHub…");
+      try {
+        const r = await fetch(item.url);
+        const txt = await r.text();
+        els.slug.value = item.slug;
+        setScript(txt, item.slug + ".lua");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } catch(e){
+        toast("Couldn't fetch the script (not published?)", "err");
+      }
     });
     row.querySelector(`[data-del="${i}"]`).addEventListener("click", () => {
       const lib2 = getLibrary().filter((_, j) => j !== i);
