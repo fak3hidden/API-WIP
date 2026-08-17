@@ -1,1167 +1,248 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>API-WIP · Lua Obfuscator</title>
-<meta name="description" content="Free client-side Lua obfuscator — rename locals, encode strings and numbers, minify, and wrap in loadstring. Runs 100% in your browser.">
-<style>
-  :root{
-    --bg:#0b0f17;
-    --card:#111827;
-    --card-2:#0d1320;
-    --border:#1f2937;
-    --border-2:#2b3648;
-    --text:#e7eaf2;
-    --muted:#8b93a7;
-    --muted-2:#5c6475;
-    --accent:#7c6cf6;
-    --accent-2:#22d3ee;
-    --ok:#34d399;
-    --err:#f87171;
-    --warn:#fbbf24;
-    --mono:ui-monospace,"JetBrains Mono","Cascadia Code","SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
-    --sans:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    --radius:14px;
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  html{scroll-behavior:smooth}
-  body{
-    font-family:var(--sans);
-    background:
-      radial-gradient(900px 480px at 85% -10%, rgba(124,108,246,.16), transparent 60%),
-      radial-gradient(700px 420px at -10% 20%, rgba(34,211,238,.10), transparent 55%),
-      var(--bg);
-    color:var(--text);
-    min-height:100vh;
-    -webkit-font-smoothing:antialiased;
-  }
-  .wrap{max-width:1180px;margin:0 auto;padding:0 22px}
-
-  /* ---------- header ---------- */
-  header{
-    border-bottom:1px solid var(--border);
-    background:rgba(11,15,23,.72);
-    backdrop-filter:blur(10px);
-    position:sticky;top:0;z-index:50;
-  }
-  .head{display:flex;align-items:center;justify-content:space-between;height:64px}
-  .logo{display:flex;align-items:center;gap:12px;font-weight:800;letter-spacing:.4px;font-size:16px}
-  .logo .badge{
-    width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:16px;font-weight:900;
-    background:linear-gradient(135deg,var(--accent),var(--accent-2));
-    color:#fff;box-shadow:0 4px 18px rgba(124,108,246,.45);
-  }
-  .logo small{color:var(--muted);font-weight:500;margin-left:4px}
-  .head-right{display:flex;align-items:center;gap:14px;color:var(--muted);font-size:13px}
-  .repo-link{
-    color:var(--muted);text-decoration:none;font-family:var(--mono);font-size:12.5px;
-    border:1px solid var(--border);padding:6px 12px;border-radius:8px;transition:.2s;
-  }
-  .repo-link:hover{color:var(--accent-2);border-color:var(--border-2)}
-
-  /* ---------- hero ---------- */
-  .hero{padding:48px 0 22px;text-align:center}
-  .hero h1{
-    font-size:clamp(26px,4.5vw,40px);font-weight:800;letter-spacing:-.5px;line-height:1.15;
-    background:linear-gradient(90deg,#c9c4ff,var(--accent-2));
-    -webkit-background-clip:text;background-clip:text;color:transparent;
-  }
-  .hero p{color:var(--muted);margin-top:12px;font-size:15px;max-width:640px;margin-inline:auto;line-height:1.6}
-  .hero .local-note{
-    display:inline-flex;align-items:center;gap:7px;margin-top:14px;font-size:12px;font-weight:600;
-    color:var(--ok);background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.25);
-    padding:6px 13px;border-radius:20px;
-  }
-  .steps{display:flex;justify-content:center;gap:0;margin-top:24px;flex-wrap:wrap}
-  .step{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px;font-weight:600}
-  .step .n{
-    width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;
-    border:1px solid var(--border-2);color:var(--muted);background:var(--card);
-  }
-  .step.act .n{background:linear-gradient(135deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff;box-shadow:0 3px 12px rgba(124,108,246,.4)}
-  .step.act{color:var(--text)}
-  .step .bar{width:44px;height:1px;background:var(--border-2)}
-
-  /* ---------- layout ---------- */
-  .grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;padding:26px 0 60px}
-  @media(max-width:920px){.grid{grid-template-columns:1fr}}
-  .card{
-    background:linear-gradient(180deg,var(--card),var(--card-2));
-    border:1px solid var(--border);border-radius:var(--radius);
-    padding:20px;margin-bottom:20px;
-  }
-  .card h2{font-size:14px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted-2);display:flex;align-items:center;gap:8px}
-  .card h2 .dot{width:7px;height:7px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-2))}
-
-  /* ---------- input ---------- */
-  .drop{
-    margin-top:14px;border:1.5px dashed var(--border-2);border-radius:12px;padding:28px 18px;
-    text-align:center;cursor:pointer;transition:.2s;background:rgba(124,108,246,.03);
-  }
-  .drop:hover,.drop.over{border-color:var(--accent);background:rgba(124,108,246,.08)}
-  .drop .icon{font-size:28px;line-height:1}
-  .drop p{margin-top:10px;color:var(--text);font-size:14px;font-weight:600}
-  .drop small{color:var(--muted);font-size:12px;display:block;margin-top:5px}
-  .drop input[type=file]{display:none}
-
-  .or{margin:16px 0 10px;text-align:center;color:var(--muted-2);font-size:12px;letter-spacing:1px;text-transform:uppercase;display:flex;align-items:center;gap:12px}
-  .or::before,.or::after{content:"";flex:1;height:1px;background:var(--border)}
-  textarea{
-    width:100%;min-height:200px;resize:vertical;border-radius:10px;background:#0a0f18;
-    border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:12.5px;line-height:1.6;
-    padding:12px 14px;outline:none;transition:border-color .2s;tab-size:4;
-  }
-  textarea:focus{border-color:var(--accent)}
-  .ta-actions{display:flex;justify-content:flex-end;margin-top:8px;gap:8px;flex-wrap:wrap}
-
-  /* ---------- options ---------- */
-  .presets{display:flex;gap:8px;margin-top:14px}
-  .preset{
-    flex:1;height:38px;border-radius:9px;border:1px solid var(--border-2);background:#0d1320;
-    color:var(--muted);font-weight:700;font-size:12.5px;cursor:pointer;transition:.2s;font-family:var(--sans);
-  }
-  .preset:hover{border-color:var(--accent);color:var(--text)}
-  .preset.on{
-    background:linear-gradient(135deg,rgba(124,108,246,.22),rgba(34,211,238,.16));
-    border-color:var(--accent);color:var(--text);
-  }
-  .opts{margin-top:16px;display:grid;gap:12px}
-  .opt-row{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px;color:var(--text)}
-  .opt-row label{font-weight:600}
-  .opt-row label small{display:block;font-weight:400;color:var(--muted-2);font-size:11.5px;margin-top:2px}
-  .check{display:flex;align-items:center;gap:9px;cursor:pointer}
-  .check input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
-  select{
-    height:34px;border-radius:8px;background:#0a0f18;border:1px solid var(--border);color:var(--text);
-    font-family:var(--mono);font-size:12.5px;padding:0 8px;outline:none;cursor:pointer;max-width:200px;
-  }
-  select:focus{border-color:var(--accent)}
-  input[type=text]{
-    height:34px;border-radius:8px;background:#0a0f18;border:1px solid var(--border);color:var(--text);
-    font-family:var(--mono);font-size:12.5px;padding:0 10px;outline:none;width:120px;
-  }
-  input[type=text]:focus{border-color:var(--accent)}
-  .seed-wrap{display:flex;align-items:center;gap:8px}
-  .seed-wrap .btn{padding:0 10px;height:34px;font-size:12px}
-  .opt-hint{font-size:11.5px;color:var(--muted-2);margin-top:2px}
-
-  /* ---------- buttons ---------- */
-  .btn{
-    display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;
-    border-radius:9px;border:none;cursor:pointer;font-weight:700;font-size:13.5px;
-    padding:0 16px;transition:.2s;font-family:var(--sans);white-space:nowrap;
-  }
-  .btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#0b0f17}
-  .btn-primary:hover{filter:brightness(1.12);transform:translateY(-1px)}
-  .btn-ghost{background:transparent;border:1px solid var(--border-2);color:var(--text)}
-  .btn-ghost:hover{border-color:var(--accent);color:var(--accent-2)}
-  .btn:disabled{opacity:.45;cursor:not-allowed;transform:none!important}
-  .btn-sm{height:30px;font-size:12px;padding:0 11px;border-radius:7px}
-  .btn-block{width:100%;margin-top:16px}
-  .btn-lg{height:46px;font-size:14.5px}
-
-  /* ---------- output ---------- */
-  .code{
-    position:relative;background:#0a0f18;border:1px solid var(--border);border-radius:11px;overflow:hidden;margin-top:14px;
-  }
-  .code .bar-top{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#0c1322;border-bottom:1px solid var(--border)}
-  .code .dots{display:flex;gap:5px}
-  .code .dots i{width:9px;height:9px;border-radius:50%;display:block}
-  .code .dots i:nth-child(1){background:#f87171}.code .dots i:nth-child(2){background:#fbbf24}.code .dots i:nth-child(3){background:#34d399}
-  .code .bar-top span{font-family:var(--mono);font-size:11px;color:var(--muted-2)}
-  .code pre{
-    padding:16px;overflow:auto;font-family:var(--mono);font-size:12.8px;line-height:1.7;
-    color:#c9d2e6;white-space:pre-wrap;word-break:break-all;max-height:420px;
-  }
-  .code pre.empty{color:var(--muted-2);font-style:italic}
-  .code .copy{
-    position:absolute;top:36px;right:12px;opacity:0;transition:.2s;
-    background:rgba(124,108,246,.16);border:1px solid var(--border-2);color:var(--text);
-    border-radius:7px;font-size:11.5px;font-weight:700;padding:6px 11px;cursor:pointer;
-  }
-  .code:hover .copy{opacity:1}
-  .code .copy.done{opacity:1;background:rgba(52,211,153,.18);border-color:var(--ok)}
-
-  .stats{margin-top:14px;display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
-  @media(max-width:560px){.stats{grid-template-columns:repeat(2,1fr)}}
-  .stat{background:#0d1320;border:1px solid var(--border);border-radius:9px;padding:9px 11px}
-  .stat .lbl{font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted-2);font-weight:700}
-  .stat .val{font-family:var(--mono);font-size:13.5px;margin-top:3px;color:var(--text);word-break:break-all}
-  .stat .val.good{color:var(--ok)} .stat .val.bad{color:var(--err)}
-
-  .logline{
-    margin-top:12px;font-size:12.5px;color:var(--muted);line-height:1.6;
-    background:rgba(124,108,246,.05);border:1px solid var(--border);border-radius:9px;padding:10px 12px;
-  }
-  .logline b{color:var(--accent-2)}
-  .logline.warn{background:rgba(251,191,36,.06);border-color:rgba(251,191,36,.22);color:#d9c48a}
-  .logline.warn b{color:var(--warn)}
-
-  .out-actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
-  .out-actions .btn{flex:1;min-width:120px}
-
-  /* ---------- how-to ---------- */
-  .how{margin-top:14px;display:grid;gap:10px}
-  .how-step{font-size:12.5px;color:var(--muted);line-height:1.55;padding-left:27px;position:relative}
-  .how-step b{
-    position:absolute;left:0;top:0;width:18px;height:18px;border-radius:50%;
-    background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#0b0f17;
-    font-size:11px;display:grid;place-items:center;font-weight:800;
-  }
-  .how-step code{font-family:var(--mono);color:var(--accent-2);font-size:11.5px}
-
-  /* ---------- footer ---------- */
-  footer{border-top:1px solid var(--border);padding:26px 0 34px;color:var(--muted-2);font-size:12.5px;text-align:center}
-  footer code{font-family:var(--mono);color:var(--muted);background:#0d1320;border:1px solid var(--border);padding:2px 7px;border-radius:6px}
-
-  /* ---------- toasts ---------- */
-  #toasts{position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;gap:10px;z-index:100}
-  .toast{
-    background:#131c2e;border:1px solid var(--border-2);border-left:3px solid var(--accent);
-    color:var(--text);font-size:13px;padding:12px 16px;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.45);
-    display:flex;align-items:center;gap:10px;animation:slide .25s ease;max-width:340px;
-  }
-  .toast.ok{border-left-color:var(--ok)} .toast.err{border-left-color:var(--err)} .toast.warn{border-left-color:var(--warn)}
-  @keyframes slide{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
-  .toast.out{opacity:0;transform:translateY(6px);transition:.3s}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Client-Side JS Obfuscator</title>
+    <!-- CodeMirror CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/monokai.min.css">
+    
+    <style>
+        :root {
+            --bg-color: #1e1e1e;
+            --text-color: #d4d4d4;
+            --primary: #007acc;
+            --primary-hover: #005f9e;
+            --red: #f44747;
+            --green: #4ec9b0;
+            --border: #3c3c3c;
+        }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 { margin-top: 0; }
+        .container {
+            width: 100%;
+            max-width: 900px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .CodeMirror {
+            height: 250px !important;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .status {
+            min-height: 24px;
+            font-weight: bold;
+            transition: opacity 0.3s;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        button:hover { background-color: var(--primary-hover); }
+        button:disabled { background-color: #555; cursor: not-allowed; }
+        .btn-secondary { background-color: #444; }
+        .btn-secondary:hover { background-color: #555; }
+        .hidden { display: none !important; }
+        .info-box {
+            background: #2d2d2d;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid var(--primary);
+            margin-top: 20px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+    </style>
 </head>
 <body>
 
-<header>
-  <div class="wrap head">
-    <div class="logo"><span class="badge">🛡</span> API-WIP <small>· Lua obfuscator</small></div>
-    <div class="head-right">
-      <a class="repo-link" href="https://github.com/fak3hidden/API-WIP" target="_blank" rel="noopener">github.com/fak3hidden/API-WIP</a>
-    </div>
-  </div>
-</header>
+    <div class="container">
+        <h1>JS Obfuscator (Client-Side)</h1>
+        <p>Paste your JavaScript below to obfuscate it locally in your browser. No code is sent to a server.</p>
 
-<main class="wrap">
-  <section class="hero">
-    <h1>Obfuscate your Lua scripts</h1>
-    <p>Paste a script, pick a strength, and get mangled variable names, encoded strings &amp; numbers,
-    minified code — or a fully <code style="font-family:var(--mono);font-size:13px">loadstring</code>-wrapped blob.</p>
-    <span class="local-note">🔒 100% client-side — your code never leaves your browser</span>
-    <div class="steps">
-      <div class="step act"><span class="n">1</span> Paste script</div>
-      <div class="bar"></div>
-      <div class="step act"><span class="n">2</span> Pick strength</div>
-      <div class="bar"></div>
-      <div class="step act"><span class="n">3</span> Copy obfuscated code</div>
-    </div>
-  </section>
+        <textarea id="input-editor">// Example JavaScript to obfuscate
+function greet(name) {
+    const message = "Hello, " + name + "! Welcome to the system.";
+    console.log(message);
+    return message;
+}
 
-  <div class="grid">
-    <!-- LEFT COLUMN -->
-    <div>
-      <section class="card">
-        <h2><span class="dot"></span> 1 · Your script</h2>
+greet("User");</textarea>
 
-        <div class="drop" id="drop">
-          <div class="icon">📄</div>
-          <p>Drop a <code style="font-family:var(--mono)">.lua</code> file here</p>
-          <small>or click to browse — processed entirely in your browser</small>
-          <input type="file" id="file" accept=".lua,.luau,.txt,text/plain">
+        <textarea id="output-editor" readonly></textarea>
+
+        <p class="status"></p>
+
+        <div class="btn-group">
+            <button id="btn-obfuscate" class="btn-primary">Obfuscate</button>
+            <button id="btn-copy" class="btn-secondary hidden">Copy Output</button>
+            <button id="btn-download" class="btn-secondary hidden">Download Output</button>
+            <button id="btn-clear" class="btn-secondary hidden">Clear / New</button>
         </div>
 
-        <div class="or">or paste the code</div>
-        <textarea id="input" spellcheck="false" placeholder='-- paste your Lua script here...&#10;print("hello world")'></textarea>
-        <div class="ta-actions">
-          <button class="btn btn-ghost btn-sm" id="exampleBtn" type="button">✨ Load example</button>
-          <button class="btn btn-ghost btn-sm" id="clearBtn" type="button">Clear</button>
+        <div class="info-box">
+            <strong>How this works:</strong> This uses the <code>javascript-obfuscator</code> library. It applies heavy obfuscation techniques identical to advanced minifiers/obfuscators: <em>Control Flow Flattening</em>, <em>Dead Code Injection</em>, <em>String Array Rotation</em>, and <em>Identifier Name Mangling</em>.
         </div>
-      </section>
-
-      <section class="card">
-        <h2><span class="dot"></span> 2 · Obfuscation options</h2>
-
-        <div class="presets">
-          <button class="preset" data-profile="light" type="button">Light</button>
-          <button class="preset on" data-profile="standard" type="button">Standard</button>
-          <button class="preset" data-profile="heavy" type="button">Heavy</button>
-        </div>
-
-        <div class="opts">
-          <div class="opt-row">
-            <label>Rename locals &amp; params<small>Mangles variable names in scope — hardest to read back</small></label>
-            <span class="check"><input type="checkbox" id="optRename" checked><span style="font-size:12px;color:var(--muted)">on</span></span>
-          </div>
-          <div class="opt-row">
-            <label>Strip comments<small>Removes all <code style="font-family:var(--mono)">--</code> comments</small></label>
-            <span class="check"><input type="checkbox" id="optStrip" checked><span style="font-size:12px;color:var(--muted)">on</span></span>
-          </div>
-          <div class="opt-row">
-            <label>Minify<small>Removes whitespace &amp; line breaks</small></label>
-            <span class="check"><input type="checkbox" id="optMinify" checked><span style="font-size:12px;color:var(--muted)">on</span></span>
-          </div>
-          <div class="opt-row">
-            <label>Obfuscate strings<small>Re-encodes every string literal</small></label>
-            <select id="optStr">
-              <option value="hex">Hex escapes</option>
-              <option value="char" >string.char()</option>
-              <option value="table">Table rebuild</option>
-              <option value="none">Off</option>
-            </select>
-          </div>
-          <div class="opt-row">
-            <label>Obfuscate numbers<small>Integers → hex / arithmetic</small></label>
-            <select id="optNum">
-              <option value="hex">Hex</option>
-              <option value="arith">Hex + arithmetic</option>
-              <option value="none">Off</option>
-            </select>
-          </div>
-          <div class="opt-row">
-            <label>Wrap in loadstring<small>Encodes the whole script and runs it via loadstring</small></label>
-            <select id="optWrap">
-              <option value="none">Off</option>
-              <option value="str">loadstring("hex…")</option>
-              <option value="char">loadstring(string.char…)</option>
-              <option value="table">loadstring(table rebuild)</option>
-            </select>
-          </div>
-          <div class="opt-row">
-            <label>Seed<small>Optional — makes output reproducible</small></label>
-            <span class="seed-wrap">
-              <input type="text" id="optSeed" placeholder="random" autocomplete="off">
-              <button class="btn btn-ghost btn-sm" id="seedClear" type="button">✕</button>
-            </span>
-          </div>
-        </div>
-
-        <button class="btn btn-primary btn-block btn-lg" id="runBtn" type="button">⚡ Obfuscate</button>
-        <div class="opt-hint" style="text-align:center;margin-top:8px">Output updates automatically as you type</div>
-      </section>
     </div>
 
-    <!-- RIGHT COLUMN -->
-    <div>
-      <section class="card">
-        <h2><span class="dot"></span> 3 · Obfuscated output</h2>
+    <!-- CodeMirror JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/javascript/javascript.min.js"></script>
+    
+    <!-- Javascript Obfuscator Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/javascript-obfuscator/4.1.1/javascript-obfuscator.min.js"></script>
 
-        <div class="code">
-          <div class="bar-top"><div class="dots"><i></i><i></i><i></i></div><span id="outName">obfuscated.lua</span></div>
-          <pre id="out" class="empty">Paste a script on the left to get started…</pre>
-          <button class="copy" id="copyBtn" type="button">📋 Copy</button>
-        </div>
+    <script>
+        // Initialize CodeMirror Editors
+        const inputEditor = CodeMirror.fromTextArea(document.getElementById("input-editor"), {
+            mode: "javascript",
+            theme: "monokai",
+            lineNumbers: true,
+            indentUnit: 4,
+            tabSize: 4,
+            lineWrapping: true
+        });
 
-        <div class="stats">
-          <div class="stat"><div class="lbl">Input</div><div class="val" id="statIn">—</div></div>
-          <div class="stat"><div class="lbl">Output</div><div class="val" id="statOut">—</div></div>
-          <div class="stat"><div class="lbl">Change</div><div class="val" id="statDelta">—</div></div>
-          <div class="stat"><div class="lbl">Time</div><div class="val" id="statTime">—</div></div>
-        </div>
+        const outputEditor = CodeMirror.fromTextArea(document.getElementById("output-editor"), {
+            mode: "javascript",
+            theme: "monokai",
+            lineNumbers: true,
+            readOnly: true,
+            lineWrapping: true
+        });
+        outputEditor.getWrapperElement().style.display = "none";
 
-        <div class="logline" id="log" style="display:none"></div>
+        // DOM Elements
+        const btnObfuscate = document.getElementById("btn-obfuscate");
+        const btnCopy = document.getElementById("btn-copy");
+        const btnDownload = document.getElementById("btn-download");
+        const btnClear = document.getElementById("btn-clear");
+        const statusEl = document.querySelector(".status");
 
-        <div class="out-actions">
-          <button class="btn btn-primary" id="copyBtn2" type="button">📋 Copy output</button>
-          <button class="btn btn-ghost" id="downBtn" type="button">⬇ Save .lua</button>
-          <button class="btn btn-ghost" id="reRandBtn" type="button">🎲 Re-obfuscate</button>
-        </div>
-      </section>
+        let statusTimeout;
 
-      <section class="card">
-        <h2><span class="dot"></span> How to use</h2>
-        <div class="how">
-          <div class="how-step"><b>1</b> Paste or drop your Lua script on the left</div>
-          <div class="how-step"><b>2</b> Pick <b>Light</b>, <b>Standard</b> or <b>Heavy</b>, or fine-tune the options</div>
-          <div class="how-step"><b>3</b> Copy the output and paste it into your executor — it runs exactly like the original</div>
-          <div class="how-step"><b>4</b> <code>Heavy</code> + <code>loadstring</code> wrap gives the most unreadable result</div>
-        </div>
-      </section>
-    </div>
-  </div>
-</main>
-
-<footer>
-  <div class="wrap">
-    Powered by <code>fak3hidden/API-WIP</code> · client-side Lua obfuscation · no scripts are uploaded or stored anywhere
-  </div>
-</footer>
-
-<div id="toasts"></div>
-
-<script>
-"use strict";
-/* ============================================================
-   API-WIP · Lua Obfuscator (client-side)
-   ============================================================ */
-
-/*CORE-START*/
-
-const KW = new Set(["and","break","continue","do","else","elseif","end","false","for","function","goto","if","in","local","nil","not","or","repeat","return","then","true","until","while"]);
-
-function isNameStart(c){ return /[A-Za-z_]/.test(c); }
-function isNameChar(c){ return /[A-Za-z0-9_]/.test(c); }
-function isDigit(c){ return c !== undefined && /[0-9]/.test(c); }
-
-/* ---------- lexer: tokenize Lua source ---------- */
-function lex(src){
-  const tokens = [];
-  let i = 0;
-  const n = src.length;
-  const isSpace = c => c === " " || c === "\t" || c === "\r" || c === "\f" || c === "\v";
-  while (i < n){
-    const c = src[i];
-    if (isSpace(c)){ i++; continue; }
-    if (c === "\n"){ tokens.push({type:"nl", start:i, end:i+1}); i++; continue; }
-
-    // comments: -- ... and --[[ ]] / --[=[ ]=]
-    if (c === "-" && src[i+1] === "-"){
-      let j = i + 2;
-      if (src[j] === "["){
-        let e = 0; let k = j + 1;
-        while (src[k] === "="){ e++; k++; }
-        if (src[k] === "["){
-          const close = "]" + "=".repeat(e) + "]";
-          const idx = src.indexOf(close, k + 1);
-          const end = idx === -1 ? n : idx + close.length;
-          tokens.push({type:"comment", start:i, end});
-          i = end; continue;
-        }
-      }
-      while (j < n && src[j] !== "\n") j++;
-      tokens.push({type:"comment", start:i, end:j});
-      i = j; continue;
-    }
-
-    // long strings: [[ ]] / [=[ ]=]
-    if (c === "["){
-      let e = 0; let k = i + 1;
-      while (src[k] === "="){ e++; k++; }
-      if (src[k] === "["){
-        const close = "]" + "=".repeat(e) + "]";
-        const contentStart = k + 1;
-        const idx = src.indexOf(close, contentStart);
-        const rawEnd = idx === -1 ? n : idx;
-        let content = src.slice(contentStart, rawEnd);
-        if (content.startsWith("\r\n")) content = content.slice(2);
-        else if (content.startsWith("\n") || content.startsWith("\r")) content = content.slice(1);
-        content = content.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-        const end = idx === -1 ? n : rawEnd + close.length;
-        tokens.push({type:"str", sub:"long", value:content, start:i, end});
-        i = end; continue;
-      }
-      tokens.push({type:"sym", value:"[", start:i, end:i+1}); i++; continue;
-    }
-
-    // quoted strings
-    if (c === '"' || c === "'"){
-      const q = c;
-      let j = i + 1; let raw = "";
-      while (j < n){
-        if (src[j] === "\\"){
-          raw += src.slice(j, j + 2); j += 2; continue;
-        }
-        if (src[j] === q){ j++; break; }
-        if (src[j] === "\n") break;
-        raw += src[j]; j++;
-      }
-      tokens.push({type:"str", sub:"quoted", raw, start:i, end:j});
-      i = j; continue;
-    }
-
-    // numbers
-    if (isDigit(c) || (c === "." && isDigit(src[i+1]))){
-      let j = i;
-      if (c === "0" && (src[i+1] === "x" || src[i+1] === "X")){
-        j += 2;
-        while (j < n && /[0-9a-fA-F_]/.test(src[j])) j++;
-        if (src[j] === "." && /[0-9a-fA-F]/.test(src[j+1])){ j++; while (j < n && /[0-9a-fA-F_]/.test(src[j])) j++; }
-        if ((src[j] === "p" || src[j] === "P")){
-          let k = j + 1;
-          if (src[k] === "+" || src[k] === "-") k++;
-          if (isDigit(src[k])){ j = k; while (j < n && /[0-9_]/.test(src[j])) j++; }
-        }
-      } else {
-        while (j < n && /[0-9_]/.test(src[j])) j++;
-        if (src[j] === "." && src[j+1] !== "."){ j++; while (j < n && /[0-9_]/.test(src[j])) j++; }
-        if (src[j] === "e" || src[j] === "E"){
-          let k = j + 1;
-          if (src[k] === "+" || src[k] === "-") k++;
-          if (isDigit(src[k])){ j = k; while (j < n && /[0-9_]/.test(src[j])) j++; }
-        }
-      }
-      tokens.push({type:"num", raw:src.slice(i,j), start:i, end:j});
-      i = j; continue;
-    }
-
-    // names / keywords
-    if (isNameStart(c)){
-      let j = i + 1;
-      while (j < n && isNameChar(src[j])) j++;
-      const word = src.slice(i, j);
-      tokens.push({type: KW.has(word) ? "kw" : "name", value:word, start:i, end:j});
-      i = j; continue;
-    }
-
-    // symbols
-    const three = src.slice(i, i + 3);
-    if (three === "..."){
-      tokens.push({type:"sym", value:"...", start:i, end:i+3}); i += 3; continue;
-    }
-    const two = src.slice(i, i + 2);
-    if (["..","::","==","~=","<=",">=","//","<<",">>"].includes(two)){
-      tokens.push({type:"sym", value:two, start:i, end:i+2}); i += 2; continue;
-    }
-    tokens.push({type:"sym", value:c, start:i, end:i+1}); i++; continue;
-  }
-  return tokens;
-}
-
-const isMeaningful = t => t.type !== "nl" && t.type !== "comment";
-
-/* ---------- decode a Lua string token to raw bytes ---------- */
-function decodeStrBytes(tok){
-  if (tok.sub === "long") return Array.from(tok.value, ch => ch.charCodeAt(0));
-  const s = tok.raw;
-  const out = [];
-  let i = 0;
-  const map = {"a":7,"b":8,"f":12,"n":10,"r":13,"t":9,"v":11,"\\":92,'"':34,"'":39};
-  while (i < s.length){
-    const c = s[i];
-    if (c !== "\\"){ out.push(s.charCodeAt(i)); i++; continue; }
-    const nx = s[i+1];
-    if (nx === "\n"){ out.push(10); i += 2; continue; }        // \ + newline → newline stays
-    if (nx === "\r" && s[i+2] === "\n"){ out.push(10); i += 3; continue; }
-    if (map[nx] !== undefined){ out.push(map[nx]); i += 2; continue; }
-    if (nx === "x"){
-      const h = parseInt(s.slice(i+2, i+4), 16);
-      if (!isNaN(h)){ out.push(h); i += 4; continue; }
-    }
-    if (nx === "z"){
-      i += 2;
-      while (i < s.length && /\s/.test(s[i])) i++;
-      continue;
-    }
-    if (isDigit(nx)){
-      let j = i + 1; let digits = "";
-      while (j < s.length && isDigit(s[j]) && digits.length < 3){ digits += s[j]; j++; }
-      const v = parseInt(digits, 10);
-      if (v <= 255){ out.push(v); i = j; continue; }
-    }
-    out.push(s.charCodeAt(i+1) || 0); i += 2; // unknown escape: keep char
-  }
-  return out;
-}
-
-/* ---------- encoders ---------- */
-function encHex(bytes){
-  return '"' + bytes.map(b => "\\" + String(b).padStart(3, "0")).join("") + '"';
-}
-function encChar(bytes, chunk){
-  chunk = chunk || 60;
-  const parts = [];
-  for (let i = 0; i < bytes.length; i += chunk){
-    parts.push("string.char(" + bytes.slice(i, i + chunk).join(",") + ")");
-  }
-  return parts.length ? parts.join("..") : '""';
-}
-function encTable(bytes){
-  const list = [];
-  for (let i = 0; i < bytes.length; i += 80) list.push(bytes.slice(i, i + 80).join(","));
-  return "(function()local _c={" + list.join(",") + "}local _s=\"\"for _i=1,#_c do _s=_s..string.char(_c[_i])end return _s end)()";
-}
-function encodeStr(bytes, mode, rng){
-  if (mode === "hex") return encHex(bytes);
-  if (mode === "char") return encChar(bytes);
-  if (mode === "table") return encTable(bytes);
-  return null;
-}
-
-/* ---------- number obfuscation ---------- */
-function obfNum(raw, mode, rng){
-  const s = raw.replace(/_/g, "");
-  let v = null;
-  if (/^0[xX][0-9a-fA-F]+$/.test(s)) v = parseInt(s.slice(2), 16);
-  else if (/^[0-9]+$/.test(s)) v = parseInt(s, 10);
-  if (v === null || !Number.isSafeInteger(v) || v < 0 || v > 0x7fffffff) return raw;
-  if (mode === "hex") return "0x" + v.toString(16);
-  if (mode === "arith"){
-    if (v < 4) return "0x" + v.toString(16);
-    const a = Math.floor(rng() * (v + 1));
-    return "(0x" + a.toString(16) + "+0x" + (v - a).toString(16) + ")";
-  }
-  return raw;
-}
-
-/* ---------- random helpers ---------- */
-function rndHex(len, rng){
-  const H = "0123456789abcdef";
-  let s = "";
-  for (let i = 0; i < len; i++) s += H[Math.floor(rng() * 16)];
-  return s;
-}
-function mulberry32(a){
-  return function(){
-    a |= 0; a = a + 0x6D2B79F5 | 0;
-    let t = Math.imul(a ^ a >>> 15, 1 | a);
-    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-    return ((t ^ t >>> 14) >>> 0) / 4294967296;
-  };
-}
-
-/* ---------- minify spacing ---------- */
-function needSpace(p, n){
-  if (/[A-Za-z0-9_]$/.test(p) && /^[A-Za-z0-9_]/.test(n)) return true;
-  if (p === "-" && n === "-") return true;
-  if (/[0-9]$/.test(p) && n.startsWith("..")) return true;
-  if (p === ".." && n.startsWith(".")) return true;
-  if (p === "." && n === ".") return true;
-  if (p === ":" && n === ":") return true;
-  return false;
-}
-
-/* ---------- build output ---------- */
-function buildOutput(tokens, src, opts){
-  const parts = [];
-  let cursor = 0;
-  for (const t of tokens){
-    if (t.type === "comment" && (opts.strip || opts.minify)){ cursor = t.end; continue; }
-    if (t.type === "nl" && opts.minify){ cursor = t.end; continue; }
-    let text;
-    if (t.renamed !== undefined) text = t.renamed;
-    else if (t.enc !== undefined) text = t.enc;
-    else text = src.slice(t.start, t.end);
-    if (opts.minify){
-      const prev = parts[parts.length - 1];
-      if (prev !== undefined && needSpace(prev, text)) parts.push(" ");
-      parts.push(text);
-    } else {
-      parts.push(src.slice(cursor, t.start), text);
-    }
-    cursor = t.end;
-  }
-  if (!opts.minify) parts.push(src.slice(cursor));
-  return parts.join("");
-}
-
-/* ---------- skip Luau type/attribute annotation ---------- */
-function skipType(tokens, idx){
-  let depth = 0;
-  for (let i = idx; i < tokens.length; i++){
-    const v = tokens[i].value;
-    if (v === "(" || v === "[" || v === "{") depth++;
-    else if (v === ")" || v === "]" || v === "}"){ if (depth === 0) return i; depth--; }
-    else if (v === "," && depth === 0) return i;
-    else if (v === ";") return i;
-  }
-  return tokens.length - 1;
-}
-
-/* ---------- scope-aware local/param renaming ---------- */
-function renameLocals(tokens, rng, used){
-  const labelNames = new Set();
-  for (let i = 0; i < tokens.length; i++){
-    const t = tokens[i];
-    if (t.type === "sym" && t.value === "::" && tokens[i+1] && tokens[i+1].type === "name") labelNames.add(tokens[i+1].value);
-  }
-  const scopes = [new Map()];
-  const nm = idx => { let j = idx + 1; while (j < tokens.length && !isMeaningful(tokens[j])) j++; return j; };
-
-  let pending = null;     // {map, scopeIdx, declDepth} — `local` declarations, activated at statement end
-  let pendingFor = null;  // loop vars, activated at `do`
-  let skipDoPush = false;
-  let skipThenPush = false;
-  let depth = 0;          // nesting: function/do/then/repeat + parens/braces — gates `local` activation
-  let exprEnd = false;    // last token completed an expression → next name/keyword starts a new statement
-  let count = 0;
-  const STMT_KWS = ["local","if","for","while","repeat","return","function","goto","break","continue","do"];
-  // previous meaningful token — `.`/`:` mark field access / type names (never renamed)
-  const prevMeaningfulTok = idx => {
-    let k = idx - 1;
-    while (k >= 0 && !isMeaningful(tokens[k])) k--;
-    return k >= 0 ? tokens[k] : null;
-  };
-
-  const push = () => scopes.push(new Map());
-  const pop = () => { if (scopes.length > 1) scopes.pop(); };
-  const genName = () => { for (;;){ const n = "_0x" + rndHex(4, rng); if (!used.has(n)){ used.add(n); return n; } } };
-  const declare = (map, name) => {
-    if (labelNames.has(name) || KW.has(name)) return;
-    const nn = genName(); map.set(name, nn); count++;
-  };
-  const resolveName = name => {
-    for (let k = scopes.length - 1; k >= 0; k--){
-      const v = scopes[k].get(name);
-      if (v !== undefined) return v;
-    }
-    return null;
-  };
-  const activatePending = () => {
-    if (!pending) return;
-    const { map, scopeIdx } = pending;
-    const scope = scopes[scopeIdx];
-    if (scope){
-      for (const [name, nn] of map) scope.set(name, nn);
-    }
-    pending = null;
-  };
-  const maybeActivate = () => {
-    if (pending && depth === pending.declDepth) activatePending();
-  };
-
-  for (let i = 0; i < tokens.length; i++){
-    const t = tokens[i];
-
-    // one-liner statement boundary: `local x = 1 print(x)` (no ; or newline)
-    if (pending && exprEnd && depth === pending.declDepth &&
-        (t.type === "name" || (t.type === "kw" && STMT_KWS.includes(t.value)))){
-      activatePending();
-    }
-    // expression-end tracking for the next token
-    if (t.type === "name" || t.type === "num" || t.type === "str") exprEnd = true;
-    else if (t.type === "sym") exprEnd = (t.value === ")" || t.value === "]" || t.value === "}");
-    else if (t.type === "nl") exprEnd = false;
-    else if (t.type === "kw") exprEnd = (t.value === "true" || t.value === "false" || t.value === "nil" || t.value === "end");
-    else exprEnd = false;
-
-    if (t.type === "kw"){
-      const v = t.value;
-
-      if (v === "local"){
-        let j = nm(i);
-        if (tokens[j] && tokens[j].type === "kw" && tokens[j].value === "function"){
-          // local function name — declared in the enclosing scope
-          let k = nm(j);
-          if (tokens[k] && tokens[k].type === "name"){
-            if (!labelNames.has(tokens[k].value) && !KW.has(tokens[k].value)){
-              const nn = genName();
-              scopes[scopes.length - 1].set(tokens[k].value, nn);
-              tokens[k].renamed = nn; count++;
+        function showStatus(message, color = "inherit", autoclear = false) {
+            if (statusTimeout) clearTimeout(statusTimeout);
+            statusEl.textContent = message;
+            statusEl.style.color = color;
+            statusEl.style.opacity = 1;
+            if (autoclear) {
+                statusTimeout = setTimeout(() => {
+                    statusEl.textContent = "";
+                    statusEl.style.opacity = 0;
+                }, 3000);
             }
-          }
-          i = j - 1; // let the loop process the `function` keyword (scope + params)
-          continue;
         }
-        // local x, y [= expr]
-        const map = new Map();
-        const scopeIdx = scopes.length - 1;
-        const declDepth = depth;
-        let cur = j;
-        for (;;){
-          const tk = tokens[cur];
-          if (!tk || !isMeaningful(tk)) break;
-          if (tk.type === "name" && !KW.has(tk.value)){
-            const nn = genName();
-            map.set(tk.value, nn);
-            tk.renamed = nn; tk.isDecl = true; count++;
-            const n2 = nm(cur);
-            if (tokens[n2] && tokens[n2].type === "sym" && tokens[n2].value === ","){ cur = nm(n2); continue; }
-          }
-          break;
-        }
-        pending = { map, scopeIdx, declDepth };
-        i = cur;
-        continue;
-      }
 
-      if (v === "function"){
-        push(); depth++;
-        let j = i + 1;
-        while (j < tokens.length && !(tokens[j].type === "sym" && tokens[j].value === "(")) j++;
-        if (tokens[j] && tokens[j].value === "("){
-          let k = j + 1;
-          for (;;){
-            while (k < tokens.length && !isMeaningful(tokens[k])) k++;
-            const tk = tokens[k];
-            if (!tk || (tk.type === "sym" && tk.value === ")")) break;
-            if (tk.type === "sym" && tk.value === ","){ k = nm(k); continue; }
-            if (tk.type === "sym" && tk.value === "..."){ k = nm(k); continue; }
-            if (tk.type === "name" && !KW.has(tk.value)){
-              declare(scopes[scopes.length - 1], tk.value);
-              const nn = scopes[scopes.length - 1].get(tk.value);
-              if (nn !== undefined) tk.renamed = nn;
-              const n2 = nm(k);
-              if (tokens[n2] && tokens[n2].type === "sym" && (tokens[n2].value === ":" || tokens[n2].value === "<")){
-                k = skipType(tokens, n2);
-              } else k = n2;
-              continue;
+        // Obfuscation Logic
+        btnObfuscate.addEventListener("click", () => {
+            const code = inputEditor.getValue();
+            if (!code.trim()) {
+                return showStatus("Please enter some JavaScript code to obfuscate.", "var(--red)");
             }
-            k++;
-          }
-        }
-        continue;
-      }
 
-      if (v === "end"){ maybeActivate(); depth--; pop(); continue; }
+            btnObfuscate.disabled = true;
+            btnObfuscate.textContent = "Obfuscating...";
+            showStatus("Processing... This might take a second for large scripts.");
 
-      if (v === "for"){
-        push(); skipDoPush = true;
-        const map = new Map();
-        let j = nm(i);
-        for (;;){
-          const tk = tokens[j];
-          if (!tk || !isMeaningful(tk)) break;
-          if (tk.type === "name" && !KW.has(tk.value)){
-            declare(map, tk.value);
-            const nn = map.get(tk.value);
-            if (nn !== undefined){ tk.renamed = nn; tk.isDecl = true; }
-            const n2 = nm(j);
-            if (tokens[n2] && tokens[n2].type === "sym" && tokens[n2].value === ","){ j = nm(n2); continue; }
-          }
-          break;
-        }
-        pendingFor = map;
-        continue;
-      }
+            // Use Web Worker or setTimeout to prevent UI freezing on heavy scripts
+            setTimeout(() => {
+                try {
+                    const obfuscationResult = JavaScriptObfuscator.obfuscate(code, {
+                        compact: true,
+                        controlFlowFlattening: true,
+                        controlFlowFlatteningThreshold: 0.75,
+                        deadCodeInjection: true,
+                        deadCodeInjectionThreshold: 0.4,
+                        debugProtection: false, // Set to true to prevent DevTools opening
+                        disableConsoleOutput: false, 
+                        identifierNamesGenerator: 'hexadecimal',
+                        rotateStringArray: true,
+                        selfDefending: true,
+                        stringArray: true,
+                        stringArrayThreshold: 0.75,
+                        transformObjectKeys: true,
+                        unicodeEscapeSequence: false
+                    });
 
-      if (v === "do"){
-        depth++;
-        if (pendingFor){ for (const [name, nn] of pendingFor) scopes[scopes.length - 1].set(name, nn); pendingFor = null; }
-        if (skipDoPush) skipDoPush = false; else push();
-        continue;
-      }
+                    outputEditor.getWrapperElement().style.display = "block";
+                    outputEditor.setValue(obfuscationResult.getObfuscatedCode());
+                    
+                    showStatus("Obfuscation complete!", "var(--green)");
+                    
+                    btnObfuscate.classList.add("hidden");
+                    btnCopy.classList.remove("hidden");
+                    btnDownload.classList.remove("hidden");
+                    btnClear.classList.remove("hidden");
 
-      if (v === "then"){
-        if (!skipThenPush){ depth++; push(); }
-        skipThenPush = false;
-        continue;
-      }
-      if (v === "elseif"){ maybeActivate(); pop(); push(); skipThenPush = true; continue; }
-      if (v === "else"){ maybeActivate(); pop(); push(); continue; }
-      if (v === "repeat"){ depth++; push(); continue; }
-      if (v === "until"){ maybeActivate(); depth--; pop(); continue; }
-      continue;
-    }
+                } catch (error) {
+                    showStatus("Error obfuscating code: " + error.message, "var(--red)");
+                } finally {
+                    btnObfuscate.disabled = false;
+                    btnObfuscate.textContent = "Obfuscate";
+                }
+            }, 50);
+        });
 
-    if (t.type === "name"){
-      if (t.isDecl){
-        // declaration name token — already renamed at collection time
-      } else {
-        const p = prevMeaningfulTok(i);
-        if (p && p.type === "sym" && (p.value === "." || p.value === ":")){
-          // field access (a.b), method (a:b) or Luau type name — never a variable reference
-        } else {
-          const r = resolveName(t.value);
-          if (r) t.renamed = r;
-        }
-      }
-      continue;
-    }
+        // Copy Logic
+        btnCopy.addEventListener("click", () => {
+            const code = outputEditor.getValue();
+            navigator.clipboard.writeText(code).then(() => {
+                showStatus("Copied to clipboard!", "var(--green)", true);
+            });
+        });
 
-    if (t.type === "sym"){
-      const v = t.value;
-      if (v === "(" || v === "[" || v === "{") depth++;
-      else if (v === ")" || v === "]" || v === "}") depth = Math.max(0, depth - 1);
-      else if (v === ";") maybeActivate();
-      continue;
-    }
+        // Download Logic
+        btnDownload.addEventListener("click", () => {
+            const code = outputEditor.getValue();
+            if (!code) return;
+            const blob = new Blob([code], { type: "application/javascript" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `obfuscated-${Date.now()}.js`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
 
-    if (t.type === "nl") maybeActivate();
-  }
-
-  return count;
-}
-
-/* ---------- block balance sanity check ---------- */
-function checkBalance(tokens){
-  let opens = 0, closes = 0;
-  for (const t of tokens){
-    if (t.type !== "kw") continue;
-    // `do` covers while/for/standalone-do blocks; `if` covers if/elseif/else chains
-    if (t.value === "function" || t.value === "do" || t.value === "if" || t.value === "repeat") opens++;
-    if (t.value === "end" || t.value === "until") closes++;
-  }
-  return { opens, closes, ok: opens === closes };
-}
-
-/* ---------- main obfuscation pass ---------- */
-function obfuscate(src, opts, rng){
-  const t0 = performance.now();
-  const tokens = lex(src);
-
-  const used = new Set();
-  for (const t of tokens) if (t.type === "name" || t.type === "kw") used.add(t.value);
-
-  const stats = { renamed: 0, strings: 0, numbers: 0 };
-
-  if (opts.rename){
-    stats.renamed = renameLocals(tokens, rng, used);
-  }
-  if (opts.strMode && opts.strMode !== "none"){
-    for (const t of tokens){
-      if (t.type === "str"){
-        const bytes = decodeStrBytes(t);
-        const enc = encodeStr(bytes, opts.strMode, rng);
-        if (enc !== null){ t.enc = enc; stats.strings++; }
-      }
-    }
-  }
-  if (opts.numMode && opts.numMode !== "none"){
-    for (const t of tokens){
-      if (t.type === "num"){
-        const enc = obfNum(t.raw, opts.numMode, rng);
-        if (enc !== t.raw){ t.enc = enc; stats.numbers++; }
-      }
-    }
-  }
-
-  const balanced = checkBalance(tokens);
-
-  let out = buildOutput(tokens, src, opts);
-
-  if (opts.wrap && opts.wrap !== "none"){
-    const bytes = Array.from(new TextEncoder().encode(out));
-    let body;
-    if (opts.wrap === "str") body = encHex(bytes);
-    else if (opts.wrap === "char") body = encChar(bytes);
-    else body = encTable(bytes);
-    out = "(loadstring or load)(" + body + ")()";
-  }
-
-  const ms = Math.max(1, Math.round((performance.now() - t0) * 10) / 10);
-  return { out, stats, balanced, ms };
-}
-
-/*CORE-END*/
-
-/* ============================================================
-   UI wiring
-   ============================================================ */
-
-const $ = id => document.getElementById(id);
-const els = {
-  drop: $("drop"), file: $("file"), input: $("input"),
-  exampleBtn: $("exampleBtn"), clearBtn: $("clearBtn"),
-  optRename: $("optRename"), optStrip: $("optStrip"), optMinify: $("optMinify"),
-  optStr: $("optStr"), optNum: $("optNum"), optWrap: $("optWrap"), optSeed: $("optSeed"), seedClear: $("seedClear"),
-  runBtn: $("runBtn"), reRandBtn: $("reRandBtn"),
-  out: $("out"), outName: $("outName"), copyBtn: $("copyBtn"), copyBtn2: $("copyBtn2"),
-  downBtn: $("downBtn"), statIn: $("statIn"), statOut: $("statOut"), statDelta: $("statDelta"), statTime: $("statTime"),
-  log: $("log"),
-};
-
-const EXAMPLE = `-- Demo script: see what the obfuscator does to it
-local player = game:GetService("Players").LocalPlayer
-
-local stats = {
-    coins = 0,
-    level = 1,
-}
-
-local function addCoins(amount)
-    stats.coins = stats.coins + amount
-    local message = "You earned " .. amount .. " coins!"
-    print(message)
-end
-
-for i = 1, 5 do
-    addCoins(i * 100)
-end
-
-local greeting = "Hello, " .. player.Name .. "!"
-print(greeting)`;
-
-const PROFILES = {
-  light:    { rename:false, strip:true,  minify:true, strMode:"hex",   numMode:"hex",   wrap:"none"  },
-  standard: { rename:true,  strip:true,  minify:true, strMode:"hex",   numMode:"hex",   wrap:"none"  },
-  heavy:    { rename:true,  strip:true,  minify:true, strMode:"table", numMode:"arith", wrap:"table" },
-};
-
-let lastOut = "";
-
-function currentOpts(){
-  return {
-    rename:  els.optRename.checked,
-    strip:   els.optStrip.checked,
-    minify:  els.optMinify.checked,
-    strMode: els.optStr.value,
-    numMode: els.optNum.value,
-    wrap:    els.optWrap.value,
-  };
-}
-
-function applyOpts(o){
-  els.optRename.checked = o.rename;
-  els.optStrip.checked = o.strip;
-  els.optMinify.checked = o.minify;
-  els.optStr.value = o.strMode;
-  els.optNum.value = o.numMode;
-  els.optWrap.value = o.wrap;
-}
-
-function makeRng(){
-  const seed = els.optSeed.value.trim();
-  if (seed !== "" && !isNaN(Number(seed))) return mulberry32(Number(seed));
-  return Math.random;
-}
-
-function bytes(str){
-  return new TextEncoder().encode(str).length;
-}
-
-function fmt(n){
-  return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-}
-
-function run(){
-  const src = els.input.value;
-  if (!src.trim()){
-    els.out.textContent = "Paste a script on the left to get started…";
-    els.out.className = "empty";
-    els.statIn.textContent = "—";
-    els.statOut.textContent = "—";
-    els.statDelta.textContent = "—";
-    els.statTime.textContent = "—";
-    els.log.style.display = "none";
-    lastOut = "";
-    return;
-  }
-  const rng = makeRng();
-  const res = obfuscate(src, currentOpts(), rng);
-  lastOut = res.out;
-  els.out.textContent = res.out || "(empty output)";
-  els.out.className = res.out ? "" : "empty";
-
-  const inB = bytes(src), outB = bytes(res.out);
-  els.statIn.textContent = fmt(inB) + " B";
-  els.statOut.textContent = fmt(outB) + " B";
-  const delta = inB === 0 ? 0 : Math.round((outB - inB) / inB * 1000) / 10;
-  els.statDelta.textContent = (delta >= 0 ? "+" : "") + delta + "%";
-  els.statDelta.className = "val " + (delta > 40 ? "bad" : delta > 0 ? "" : "good");
-  els.statTime.textContent = res.ms + " ms";
-
-  const parts = [];
-  if (res.stats.renamed) parts.push("<b>" + res.stats.renamed + "</b> local" + (res.stats.renamed === 1 ? "" : "s") + " renamed");
-  if (res.stats.strings) parts.push("<b>" + res.stats.strings + "</b> string" + (res.stats.strings === 1 ? "" : "s") + " encoded");
-  if (res.stats.numbers) parts.push("<b>" + res.stats.numbers + "</b> number" + (res.stats.numbers === 1 ? "" : "s") + " encoded");
-  if (!parts.length) parts.push("no transformable tokens — try the Heavy preset");
-
-  els.log.className = "logline" + (res.balanced.ok ? "" : " warn");
-  els.log.innerHTML = (res.balanced.ok ? "✅ " : "⚠ ") + parts.join(" · ") +
-    (res.balanced.ok ? "" : " — block structure looks unbalanced, double-check the output!");
-  els.log.style.display = "block";
-}
-
-let debounceTimer;
-function scheduleRun(){
-  clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(run, 250);
-}
-
-/* ---------- input ---------- */
-els.input.addEventListener("input", scheduleRun);
-
-els.drop.addEventListener("click", () => els.file.click());
-els.drop.addEventListener("dragover", e => { e.preventDefault(); els.drop.classList.add("over"); });
-els.drop.addEventListener("dragleave", () => els.drop.classList.remove("over"));
-els.drop.addEventListener("drop", e => {
-  e.preventDefault();
-  els.drop.classList.remove("over");
-  const f = e.dataTransfer.files && e.dataTransfer.files[0];
-  if (!f) return;
-  const reader = new FileReader();
-  reader.onload = () => { els.input.value = String(reader.result); run(); toast("Script loaded from " + f.name, "ok"); };
-  reader.readAsText(f);
-});
-els.file.addEventListener("change", () => {
-  const f = els.file.files && els.file.files[0];
-  if (!f) return;
-  const reader = new FileReader();
-  reader.onload = () => { els.input.value = String(reader.result); run(); toast("Script loaded from " + f.name, "ok"); };
-  reader.readAsText(f);
-  els.file.value = "";
-});
-
-els.exampleBtn.addEventListener("click", () => { els.input.value = EXAMPLE; run(); });
-els.clearBtn.addEventListener("click", () => { els.input.value = ""; run(); });
-
-/* ---------- options ---------- */
-document.querySelectorAll(".preset").forEach(p => p.addEventListener("click", () => {
-  document.querySelectorAll(".preset").forEach(x => x.classList.remove("on"));
-  p.classList.add("on");
-  applyOpts(PROFILES[p.dataset.profile]);
-  run();
-  toast("Profile: " + p.dataset.profile);
-}));
-
-[els.optRename, els.optStrip, els.optMinify].forEach(c => c.addEventListener("change", () => {
-  document.querySelectorAll(".preset").forEach(x => x.classList.remove("on"));
-  run();
-}));
-[els.optStr, els.optNum, els.optWrap].forEach(s => s.addEventListener("change", () => {
-  document.querySelectorAll(".preset").forEach(x => x.classList.remove("on"));
-  run();
-}));
-els.optSeed.addEventListener("input", scheduleRun);
-els.seedClear.addEventListener("click", () => { els.optSeed.value = ""; run(); });
-
-els.runBtn.addEventListener("click", run);
-els.reRandBtn.addEventListener("click", () => {
-  els.optSeed.value = "";
-  run();
-  toast("New random names generated", "ok");
-});
-
-/* ---------- clipboard ---------- */
-async function copyText(text){
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch(e){
-    try {
-      const ta = document.createElement("textarea");
-      ta.value = text;
-      ta.style.position = "fixed"; ta.style.opacity = "0";
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand("copy");
-      ta.remove();
-      return true;
-    } catch(e2){ return false; }
-  }
-}
-
-function highlightDone(){
-  els.copyBtn.classList.add("done");
-  els.copyBtn2.textContent = "✓ Copied";
-  setTimeout(() => {
-    els.copyBtn.classList.remove("done");
-    els.copyBtn2.textContent = "📋 Copy output";
-  }, 1600);
-}
-
-els.copyBtn.addEventListener("click", async () => {
-  if (!lastOut) return;
-  const ok = await copyText(lastOut);
-  toast(ok ? "Obfuscated code copied ✔" : "Copy failed — select it manually", ok ? "ok" : "err");
-  if (ok) highlightDone();
-});
-els.copyBtn2.addEventListener("click", async () => {
-  if (!lastOut) return;
-  const ok = await copyText(lastOut);
-  toast(ok ? "Obfuscated code copied ✔" : "Copy failed", ok ? "ok" : "err");
-  if (ok) highlightDone();
-});
-
-/* ---------- download ---------- */
-els.downBtn.addEventListener("click", () => {
-  if (!lastOut){ toast("Obfuscate something first", "warn"); return; }
-  const blob = new Blob([lastOut], { type: "text/plain" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "obfuscated.lua";
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-  toast("Saved as obfuscated.lua", "ok");
-});
-
-/* ---------- toasts ---------- */
-function toast(msg, type){
-  const t = document.createElement("div");
-  t.className = "toast " + (type || "");
-  t.textContent = msg;
-  $("toasts").appendChild(t);
-  setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 350); }, 3200);
-}
-
-/* ---------- init ---------- */
-els.input.value = EXAMPLE;
-run();
-</script>
+        // Clear Logic
+        btnClear.addEventListener("click", () => {
+            inputEditor.setValue("");
+            outputEditor.setValue("");
+            outputEditor.getWrapperElement().style.display = "none";
+            btnObfuscate.classList.remove("hidden");
+            btnCopy.classList.add("hidden");
+            btnDownload.classList.add("hidden");
+            btnClear.classList.add("hidden");
+            showStatus("");
+        });
+    </script>
 </body>
 </html>
